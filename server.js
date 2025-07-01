@@ -12,7 +12,8 @@ app.use(express.json());
 //     useNewUrlParser: true,
 //     useUnifiedTopology: true
 // });
-mongoose.connect('mongodb+srv://lokeshashapu:Loki_@506@cluster0.57zntl1.mongodb.net/meditrack?retryWrites=true&w=majority')
+const mongoUri='mongodb+srv://lokeshashapu:Loki_@506@cluster0.57zntl1.mongodb.net/meditrack?retryWrites=true&w=majority';
+mongoose.connect(mongoUri)
     .then(() => console.log('✅ MongoDB connected'))
     .catch(err => console.error('❌ MongoDB connection error:', err));
 
@@ -25,8 +26,8 @@ const trackerSchema = new mongoose.Schema({
 
 module.exports = mongoose.model("Tracker", trackerSchema);
 
-const uri = "mongodb://localhost:27017/meditrack";
-const client = new MongoClient(uri);
+const localUri = "mongodb://localhost:27017/meditrack";
+const client = new MongoClient(localUri);
 
 async function run() {
     await client.connect();
@@ -42,3 +43,12 @@ await client.close();
 }
 
 run();
+
+app.get('/', (req, res) => {
+    res.send('Surver is running.....');
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
