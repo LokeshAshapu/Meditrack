@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const mongoUri = 'mongodb+srv://lokeshashapu:Loki_@506@cluster0.57zntl1.mongodb.net/meditrack?retryWrites=true&w=majority';
+const mongoUri = 'mongodb+srv://lokeshashapu:Loki_%40506@cluster0.57zntl1.mongodb.net/meditrack?retryWrites=true&w=majority';
 
 mongoose.connect(mongoUri)
     .then(() => console.log("✅ MongoDB connected"))
