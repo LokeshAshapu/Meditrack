@@ -16,7 +16,8 @@ mongoose.connect(mongoUri)
 // ✅ Tracker Schema & Model
 const trackerSchema = new mongoose.Schema({
     email: { type: String, required: true },
-    time: { type: Date, required: true, default: Date.now }
+    medicine: { type: String, required: true },
+    time: { type: String, required: true }
 });
 
 const Tracker = mongoose.model("Tracker", trackerSchema);
