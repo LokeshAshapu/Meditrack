@@ -8,12 +8,11 @@ const cors = require('cors');
 
 app.use(cors());
 app.use(express.json());
-// mongoose.connect("mongodb+srv://lokeshashapu:Loki_@506@cluster.mongodb.net/meditrack?retryWrites=true&w=majority");
 // mongoose.connect("mongodb://localhost:27017/meditrack", {
 //     useNewUrlParser: true,
 //     useUnifiedTopology: true
 // });
-mongoose.connect('mongodb://localhost:27017/meditrack')
+mongoose.connect('mongodb+srv://lokeshashapu:Loki_@506@cluster0.57zntl1.mongodb.net/meditrack?retryWrites=true&w=majority')
     .then(() => console.log('✅ MongoDB connected'))
     .catch(err => console.error('❌ MongoDB connection error:', err));
 
