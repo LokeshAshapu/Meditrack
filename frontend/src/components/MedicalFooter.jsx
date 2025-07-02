@@ -15,9 +15,9 @@ const MedicalFooter = () => {
         <div>
           <h3 className="text-lg font-semibold mb-3 border-b border-white pb-1">Features</h3>
           <ul className="space-y-2 text-sm">
+            <li><Link to="/main" className="hover:underline">Home</Link></li>
             <li><Link to="/tracker" className="hover:underline">Medicine Tracker</Link></li>
             <li><Link to="/medical" className="hover:underline">Medical Specialities</Link></li>
-            <li><Link to="/main" className="hover:underline">Home</Link></li>
             <li><Link to="/Dashboard" className="hover:underline">Dashboard</Link></li>
           </ul>
         </div>
