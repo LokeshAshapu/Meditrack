@@ -22,6 +22,7 @@ function NavBar() {
                     <Link to="/medical" className="text-gray-300 hover:text-white scroll-mt-20">Medical Specialities</Link>
                     <Link to="/tracker" className="text-gray-300 hover:text-white scroll-mt-20">Tracker</Link>
                     <Link to="/contact" className="text-gray-300 hover:text-white scroll-mt-20">Contact</Link>
+                    <Link to={"/Dashboard"} className="text-gray-300 hover:text-white scroll-mt-20">Dashboard</Link>
                 </div>
             </div>
             {isOpen && (
@@ -30,6 +31,7 @@ function NavBar() {
                     <Link to="/medical" onClick={toggleMenu} className="block text-gray-300 hover:text-white scroll-mt-20">Medical Specialities</Link>
                     <Link to="/tracker" onClick={toggleMenu} className="block text-gray-300 hover:text-white scroll-mt-20">Tracker</Link>
                     <Link to="/contact" onClick={toggleMenu} className="block text-gray-300 hover:text-white scroll-mt-20">Contact</Link>
+                    <Link to={"/Dashboard"} onClick={toggleMenu} className="block text-gray-300 hover:text-white scroll-mt-20">Dashboard</Link>
                 </div>
             )}
         </nav>
