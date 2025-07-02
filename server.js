@@ -1,6 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
@@ -15,9 +18,8 @@ mongoose.connect(mongoUri)
 const trackerSchema = new mongoose.Schema({
     email: { type: String, required: true },
     medicine: { type: String, required: true },
-    time: { type: String, required: true },
+    time: { type: String, required: true }, // Format: HH:mm (24-hour)
 });
-module.exports = mongoose.model('Tracker', trackerSchema);
 const Tracker = mongoose.model('Tracker', trackerSchema);
 
 app.post("/add-tracker", async (req, res) => {
@@ -38,10 +40,10 @@ app.post("/add-tracker", async (req, res) => {
 
 app.get('/get-tracker', async (req, res) => {
     try {
-    const data = await Tracker.find();
-    res.status(200).json({ data });
+        const data = await Tracker.find();
+        res.status(200).json({ data });
     } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch trackers', error });
+        res.status(500).json({ message: 'Failed to fetch trackers', error });
     }
 });
 
@@ -61,6 +63,43 @@ app.delete('/delete-tracker/:id', async (req, res) => {
 
 app.get("/", (req, res) => {
     res.send("Server is running...");
+});
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+const sendReminder = async (to, medicine, time) => {
+    try {
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to,
+            subject: '💊 Medicine Reminder',
+            text: `Hey! It's time to take your medicine: ${medicine} at ${time}`
+        });
+        console.log(`📧 Reminder sent to ${to}`);
+    } catch (error) {
+        console.error(`❌ Failed to send email to ${to}`, error);
+    }
+};
+
+cron.schedule('* * * * *', async () => {
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    console.log(`⏱️ Checking reminders for ${currentTime}`);
+
+    try {
+        const trackers = await Tracker.find({ time: currentTime });
+        for (const tracker of trackers) {
+            await sendReminder(tracker.email, tracker.medicine, tracker.time);
+        }
+    } catch (error) {
+        console.error('❌ Error during scheduled check:', error);
+    }
 });
 
 const PORT = process.env.PORT || 5000;
