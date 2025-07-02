@@ -6,6 +6,7 @@ import MedicalSpecialities from './components/MedicalSpecialities';
 import ContactPage from './components/ContactPage';
 import Tracker from './components/Tracker';
 import ScrollToTop from './components/ScrollToTop';
+import Dashboard from './components/pages/Dashboard';
 function App() {
 
   return (
@@ -18,6 +19,7 @@ function App() {
                 <Route path="/tracker" element={<Tracker />} />
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/" element={<WelcomePage />} />
+                <Route path='/Dashboard' element={<Dashboard/>} />
             </Routes>
       </Router>
     </>
