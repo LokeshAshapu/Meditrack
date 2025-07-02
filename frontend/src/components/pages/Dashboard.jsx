@@ -1,6 +1,6 @@
 import React from "react";
-import NavBar from "./NavBar";
-import MedicalFooter from "./MedicalFooter";
+import NavBar from "../NavBar";
+import MedicalFooter from "../MedicalFooter";
 
 function Dashboard() {
     return (
