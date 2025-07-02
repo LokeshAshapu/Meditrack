@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState ,useEffect} from 'react';
+import { Link ,useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react'; // Optional: Install lucide-react for modern icons
 function NavBar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -7,6 +7,13 @@ function NavBar() {
     const toggleMenu = () => {
         setIsOpen(!isOpen);
     };
+
+    const location = useLocation();
+
+    useEffect(() => {
+        window.scrollTo(0, 0); // Scroll to top on route change
+    }, [location]);
+
 
     return (
         <nav className="bg-gray-800 p-6 shadow-md sticky top-0 z-50 text-white">
