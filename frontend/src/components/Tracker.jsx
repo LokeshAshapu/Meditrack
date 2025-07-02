@@ -139,7 +139,7 @@ function Tracker() {
                   <p>
                     <strong>Time:</strong> {card.time}
                   </p>
-                  <button className="bg-blue-700  p-2 text-white rounded-md cursor-pointer mt-3 hover:bg-indigo-700">Delete</button>
+                  <button className="bg-blue-700  p-2 text-white rounded-md cursor-pointer mt-3 hover:bg-indigo-800">Delete</button>
                 </div>
               ))
             ) : (
