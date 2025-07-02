@@ -24,6 +24,26 @@ function Tracker() {
     fetchCards();
     }, []);
 
+
+    const handleDelete = async (id) => {
+    try {
+        const res = await fetch(`http://localhost:5000/delete-tracker/${id}`, {
+        method: "DELETE",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            setMessage(data.message || "Something went wrong");
+            return;
+        }
+        setMessage(data.message || "Tracker deleted successfully!");
+        fetchCards();
+    } catch (error) {
+        console.error("Error deleting tracker:", error);
+        setMessage("Failed to delete tracker");
+    }
+    };
+
+
     const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -139,7 +159,7 @@ function Tracker() {
                     <p>
                     <strong>Time:</strong> {card.time}
                     </p>
-                    <button className="bg-blue-700  p-2 text-white rounded-md cursor-pointer mt-3 hover:bg-indigo-800">Delete</button>
+                    <button onClick={()=> handleDelete(card._id)} className="bg-blue-700  p-2 text-white rounded-md cursor-pointer mt-3 hover:bg-indigo-800">Delete</button>
                 </div>
                 ))
             ) : (
