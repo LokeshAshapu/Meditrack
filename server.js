@@ -12,7 +12,6 @@ mongoose.connect(mongoUri)
     .then(() => console.log("✅ MongoDB connected"))
     .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Schema
 const trackerSchema = new mongoose.Schema({
     email: { type: String, required: true },
     medicine: { type: String, required: true },
@@ -21,7 +20,6 @@ const trackerSchema = new mongoose.Schema({
 
 const Tracker = mongoose.model('Tracker', trackerSchema);
 
-// POST route to add a tracker entry
 app.post("/add-tracker", async (req, res) => {
     const { email, medicine, time } = req.body;
 
@@ -38,7 +36,6 @@ app.post("/add-tracker", async (req, res) => {
     }
 });
 
-// Health check
 app.get("/", (req, res) => {
     res.send("Server is running...");
 });

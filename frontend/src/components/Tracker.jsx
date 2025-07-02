@@ -19,6 +19,22 @@ function Tracker() {
         body: JSON.stringify({ email, medicine, time }),
     });
 
+    if (!res.ok) {
+        const errorData = await res.json();
+        setMessage(errorData.message || "Something went wrong");
+        return;
+    }
+
+    // If you want to fetch data after posting, do it like this:
+    // const response = await fetch("http://localhost:5000/", {
+    //     method: "GET",
+    //     headers: {
+    //         "Content-Type": "application/json",
+    //     },
+    // });
+    // const responseData = await response.json();
+    // (Handle responseData as needed)
+
     const data = await res.json();
     setMessage(data.message || "Something went wrong");
 
@@ -94,6 +110,12 @@ function Tracker() {
                 </p>
             )}
             </form>
+        </div>
+        <div>
+            <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">Your Tracks</h1>
+            <div>
+
+            </div>
         </div>
         </div>
         <MedicalFooter />
