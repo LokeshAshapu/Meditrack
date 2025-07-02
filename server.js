@@ -17,7 +17,7 @@ const trackerSchema = new mongoose.Schema({
     medicine: { type: String, required: true },
     time: { type: String, required: true },
 });
-
+module.exports = mongoose.model('Tracker', trackerSchema);
 const Tracker = mongoose.model('Tracker', trackerSchema);
 
 app.post("/add-tracker", async (req, res) => {
@@ -32,6 +32,29 @@ app.post("/add-tracker", async (req, res) => {
         res.json({ message: "Tracker saved successfully" });
     } catch (error) {
         console.error("❌ Error saving tracker:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+app.get('/get-tracker', async (req, res) => {
+    try {
+    const data = await Tracker.find();
+    res.status(200).json({ data });
+    } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch trackers', error });
+    }
+});
+
+app.delete('/delete-tracker/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deletedTracker = await Tracker.findByIdAndDelete(id);
+        if (!deletedTracker) {
+            return res.status(404).json({ message: "Tracker not found" });
+        }
+        res.status(200).json({ message: "Tracker deleted successfully" });
+    } catch (error) {
+        console.error("❌ Error deleting tracker:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 });
