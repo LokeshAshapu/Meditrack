@@ -149,10 +149,10 @@ function Tracker() {
             )}
             </div>
         </div>
-      </div>
-      <MedicalFooter />
+        </div>
+        <MedicalFooter />
     </div>
-  );
+    );
 }
 
 export default Tracker;
