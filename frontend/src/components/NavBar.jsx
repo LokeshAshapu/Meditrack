@@ -1,6 +1,6 @@
 import React, { useState ,useEffect} from 'react';
 import { Link ,useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react'; // Optional: Install lucide-react for modern icons
+import { Menu, X } from 'lucide-react';
 function NavBar() {
     const [isOpen, setIsOpen] = useState(false);
 
