@@ -13,7 +13,6 @@ function Tracker() {
 
     const handleSubmit = async (e) => {
     e.preventDefault();
-
     const res = await fetch("http://localhost:5000/add-tracker", {
         method: "POST",
         headers: {
