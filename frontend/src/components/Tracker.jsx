@@ -7,10 +7,6 @@ function Tracker() {
     const [medicine, setMedicine] = useState("");
     const [time, setTime] = useState("");
     const [message, setMessage] = useState("");
-
-
-
-
     const handleSubmit = async (e) => {
     e.preventDefault();
     const res = await fetch("http://localhost:5000/add-tracker", {
