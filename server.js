@@ -62,7 +62,7 @@ app.delete('/delete-tracker/:id', async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-    res.send("Server is running..");
+    res.send("Server is running...");
 });
 
 const transporter = nodemailer.createTransport({
