@@ -8,6 +8,7 @@ import Tracker from './components/Tracker';
 import ScrollToTop from './components/ScrollToTop';
 import Dashboard from './components/pages/Dashboard';
 import LoginPage from './components/LoginPage';
+import SignupPage from './components/SignupPage';
 function App() {
 
   return (
@@ -15,6 +16,7 @@ function App() {
       <Router>
             <ScrollToTop />
             <Routes>
+                <Route path="/signup" element={<SignupPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/main" element={<MainPage />} />
                 <Route path="/medical" element={<MedicalSpecialities />} />
