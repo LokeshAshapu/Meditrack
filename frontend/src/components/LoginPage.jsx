@@ -1,8 +1,25 @@
 import React from "react";
 
 function LoginPage() {
-    const handleSubmit = (event) => {
+    const handleSubmit = async (event) => {
         event.preventDefault();
+        const email = event.target.email.value;
+        const password = event.target.password.value;
+        try {
+            const response = await fetch("http://localhost:5000/api/check-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email ,password }),
+            });
+            const data = await response.json();
+            if (!data.exists) {
+                alert("This email is not registered");
+                return;
+            }
+        } catch (error) {
+            console.error(error);
+            alert("An error occurred. Please try again.");
+        }
         console.log("Login form submitted");
     };
     return (
