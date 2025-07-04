@@ -44,6 +44,29 @@ app.post("/signup", async (req, res) => {
     }
 });
 
+
+
+app.get("/login", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+        const user = await User.find
+        ({ email, password });
+            if (!user) {
+                return res.status(401).json({ message: "Invalid email or password" });
+            }
+            res.status(200).json({ message: "Login successful", user });
+            console.log("✅ User logged in:", user.email);
+            res.redirect('/MainPage');
+    } catch (error) {
+        console.error("❌ Error logging in user:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
+
 const trackerSchema = new mongoose.Schema({
     email: { type: String, required: true },
     medicine: { type: String, required: true },
