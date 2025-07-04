@@ -42,7 +42,7 @@ function SignupPage() {
                     >
                         Sign Up
                     </button>
-                    <p>If already has an account <a href="/login">SignIn</a></p>
+                    <p className="text-gray-500 mt-3">If already has an account <a href="/login" className="text-black hover:underline hover:text-blue-600">SignIn</a></p>
                 </form>
             </div>
         </div>
