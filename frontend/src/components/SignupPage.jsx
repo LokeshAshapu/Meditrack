@@ -1,3 +1,4 @@
+import { response } from "express";
 import React from "react";
 
 function SignupPage() {
@@ -23,6 +24,7 @@ function SignupPage() {
         .then((data) => {
             if (data.success) {
                 alert("Signup successful!");
+                response.redirect("/main");
             } else {
                 alert(data.message || "Signup failed.");
             }
