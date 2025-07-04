@@ -11,7 +11,7 @@ function WelcomePage() {
                 This tool helps you update the medicine on completion.
             </p>
             <div className="mt-8">
-                <Link to="/main" className="px-6 py-3 text-white bg-blue-600 rounded hover:bg-blue-700 transition duration-500 hover:shadow-lg">
+                <Link to="/login" className="px-6 py-3 text-white bg-blue-600 rounded hover:bg-blue-700 transition duration-500 hover:shadow-lg">
                     Get Started <i class="fa-solid fa-arrow-right-long"></i>
                 </Link>
             </div>
