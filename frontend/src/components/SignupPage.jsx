@@ -32,6 +32,7 @@ function SignupPage() {
                     >
                         Sign Up
                     </button>
+                    <p>If already has an account <a href="/login">SignIn</a></p>
                 </form>
             </div>
         </div>
