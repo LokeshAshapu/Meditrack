@@ -55,8 +55,8 @@ app.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        const passwordMatch = await bcrypt.compare(password, user.password);
-        if (!passwordMatch) {
+        const isPasswordMatch = await bcrypt.compare(password, user.password);
+        if (!isPasswordMatch) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
@@ -74,7 +74,6 @@ const trackerSchema = new mongoose.Schema({
     time: { type: String, required: true },
 });
 const Tracker = mongoose.model('Tracker', trackerSchema);
-
 app.post('/add-tracker', async (req, res) => {
     const { email, medicine, time } = req.body;
     try {
@@ -135,14 +134,13 @@ async function sendReminder(to, medicine, time) {
             from: process.env.EMAIL_USER,
             to,
             subject: '💊 Medicine Reminder',
-            text: `Hey! It\'s time to take your medicine: ${medicine} at ${time}`,
+            text: `Hey! It's time to take your medicine: ${medicine} at ${time}`,
         });
         console.log(`📧 Reminder sent to ${to}`);
     } catch (error) {
         console.error(`❌ Failed to send email to ${to}`, error);
     }
 }
-
 cron.schedule('* * * * *', async () => {
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
