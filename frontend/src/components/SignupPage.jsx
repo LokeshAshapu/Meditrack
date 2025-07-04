@@ -26,6 +26,16 @@ function SignupPage() {
                             required
                         />
                     </div>
+                    <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="confirm_password">Confirm Password</label>
+                        <input
+                            type="password"
+                            id="confirm_password"
+                            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            placeholder="Enter your password"
+                            required
+                        />
+                    </div>
                     <button
                         type="submit"
                         className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition duration-200 cursor-pointer"
