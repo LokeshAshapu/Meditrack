@@ -36,6 +36,8 @@ app.post("/signup", async (req, res) => {
         const newUser = await User.create({ email, password });
         res.status(201).json({ message: "User created successfully", user: newUser
         });
+        console.log("✅ User created:", newUser.email);
+        res.redirect('/MainPage');
     } catch (error) {
         console.error("❌ Error creating user:", error);
         res.status(500).json({ message: "Internal server error" });
