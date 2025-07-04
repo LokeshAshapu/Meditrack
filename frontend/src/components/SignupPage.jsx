@@ -3,6 +3,35 @@ import React from "react";
 function SignupPage() {
     const handleSubmit = (event) => {
         event.preventDefault();
+        const email = event.target.email.value;
+        const password = event.target.password.value;
+        const confirmPassword = event.target.confirm_password.value;
+
+        if (password !== confirmPassword) {
+            alert("Please enter matching passwords.");
+            return;
+        }
+
+        fetch("http://localhost:5000/signup", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, password }),
+        })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.success) {
+                alert("Signup successful!");
+            } else {
+                alert(data.message || "Signup failed.");
+            }
+        })
+        .catch((error) => {
+            alert("An error occurred. Please try again.");
+            console.error(error);
+        });
+
         console.log("Signup form submitted");
     };
     return (
