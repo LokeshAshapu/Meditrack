@@ -15,6 +15,33 @@ mongoose.connect(mongoUri)
     .then(() => console.log("✅ MongoDB connected"))
     .catch((err) => console.error("❌ MongoDB connection error:", err));
 
+
+
+const userSchema = new mongoose.Schema({
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+});
+const User = mongoose.model('User', userSchema);
+
+app.post("/signup", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: "User already exists" });
+        }
+        const newUser = await User.create({ email, password });
+        res.status(201).json({ message: "User created successfully", user: newUser
+        });
+    } catch (error) {
+        console.error("❌ Error creating user:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
+
 const trackerSchema = new mongoose.Schema({
     email: { type: String, required: true },
     medicine: { type: String, required: true },
