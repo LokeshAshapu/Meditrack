@@ -32,7 +32,7 @@ function LoginPage() {
                     >
                         Sign In
                     </button>
-                    <p>If not already registered <a href="/signup">SignUp</a></p>
+                    <p className="text-gray-500 mt-3">If not already registered <a href="/signup">SignUp</a></p>
                 </form>
             </div>
         </div>
