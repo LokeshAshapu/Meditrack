@@ -43,36 +43,35 @@ function Dashboard() {
         }
     };
 
-  return (
-    <div className="bg-white min-h-screen">
-      <NavBar />
-      <div className="p-4 mt-6 mb-6 col-span-3">
-        {message && (
-          <div
-            className="mt-4 text-green-800 bg-green-100 border border-green-300 px-4 py-3 rounded text-center font-semibold"
-            role="alert"
-          >
-            {message}
-          </div>
-        )}
-
-        <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
-          <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">
-            Your Tracks
-          </h1>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {cards.length > 0 ? (
-              cards.map((card, index) => (
+    return (
+        <div className="bg-white min-h-screen">
+        <NavBar />
+        <div className="p-4 mt-6 mb-6 col-span-3">
+            {message && (
                 <div
-                  key={index}
-                  className="border border-gray-300 rounded-lg p-4 shadow hover:shadow-md transition"
+                    className="mt-4 text-green-800 bg-green-100 border border-green-300 px-4 py-3 rounded text-center font-semibold"
+                    role="alert"
                 >
-                  <p>
-                    <strong>Email:</strong> {card.email}
-                  </p>
-                  <p>
-                    <strong>Medicine:</strong> {card.medicine}
-                  </p>
+                {message}
+                </div>
+            )}
+        <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
+            <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">
+                Your Tracks
+            </h1>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cards.length > 0 ? (
+                    cards.map((card, index) => (
+                        <div
+                            key={index}
+                            className="border border-gray-300 rounded-lg p-4 shadow hover:shadow-md transition"
+                        >
+                            <p>
+                                <strong>Email:</strong> {card.email}
+                            </p>
+                            <p>
+                                <strong>Medicine:</strong> {card.medicine}
+                            </p>
                   <p>
                     <strong>Time:</strong> {card.time}
                   </p>
