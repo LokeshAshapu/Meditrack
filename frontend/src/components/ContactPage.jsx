@@ -2,6 +2,29 @@ import MedicalFooter from './MedicalFooter';
 import NavBar from './NavBar';
 
 function ContactPage(){
+    function handleSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        fetch(form.action, {
+            method: "POST",
+            body: new FormData(form),
+            headers: {
+                Accept: "application/json",
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                alert("Thanks for filling out the form!");
+                window.location.reload();
+            } else {
+                alert("There was an error submitting the form.");
+            }
+        })
+    .catch(error => {
+      console.error("Form error:", error);
+      alert("Something went wrong.");
+    });
+  }
     return (
         <div className='bg-white'>
             <NavBar />
@@ -16,12 +39,11 @@ function ContactPage(){
                 <div className='flex flex-col items-center mt-10 p-6 max-w-lg mx-auto border border-gray-300 rounded-lg shadow-lg bg-white'>
                     <form
                         className='w-full space-y-4'
+                        onSubmit={handleSubmit}
                         action="https://formsubmit.co/lokeshashapu@gmail.com"
                         method="POST"
                         >
-                            <input type="hidden" name="_captcha" value="false" />
-                            {/* Redirect to thank you page after submission (optional) */}
-                            <input type="hidden" name="_next" value="https://yourdomain.com/thank-you" />
+                            {/* <input type="hidden" name="_captcha" value="false" /> */}
                             <div>
                                 <label htmlFor="email" className='block text-sm font-medium text-gray-700 mb-1'>Email</label>
                                 <input
