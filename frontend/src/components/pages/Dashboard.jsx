@@ -72,28 +72,28 @@ function Dashboard() {
                             <p>
                                 <strong>Medicine:</strong> {card.medicine}
                             </p>
-                  <p>
-                    <strong>Time:</strong> {card.time}
-                  </p>
-                  <button
-                    onClick={() => handleDelete(card._id)}
-                    className="bg-blue-700 p-2 text-white rounded-md cursor-pointer mt-3 hover:bg-indigo-800"
-                  >
-                    Delete
-                  </button>
+                            <p>
+                                <strong>Time:</strong> {card.time}
+                            </p>
+                            <button
+                                onClick={() => handleDelete(card._id)}
+                                className="bg-blue-700 p-2 text-white rounded-md cursor-pointer mt-3 hover:bg-indigo-800"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-center text-gray-500 col-span-3">
+                        No trackers available.
+                    </p>
+                )}
                 </div>
-              ))
-            ) : (
-              <p className="text-center text-gray-500 col-span-3">
-                No trackers available.
-              </p>
-            )}
-          </div>
+            </div>
         </div>
-      </div>
-      <MedicalFooter />
+        <MedicalFooter />
     </div>
-  );
+    );
 }
 
 export default Dashboard;
