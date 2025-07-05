@@ -55,8 +55,8 @@ function Dashboard() {
                 {message}
                 </div>
             )}
-        <h1 className="text-center mb-10 font-bold text-3xl text-indigo-700">Welcome to Dashboard dear subscriber...</h1>
-        <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
+        <h1 className="text-center mb-15 font-bold text-3xl text-indigo-700">Welcome to Dashboard dear subscriber...</h1>
+        <div className="mt-8 p-6 bg-white rounded-lg shadow-md mb-24">
             <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">
                 Your Tracks
             </h1>
