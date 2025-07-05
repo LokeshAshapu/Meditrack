@@ -88,7 +88,7 @@ function Tracker() {
             </div>
             <button
                 type="submit"
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 w-full sm:w-auto"
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 w-full sm:w-auto cursor-pointer transition-colors duration-300"
             >
                 Subscribe
             </button>
