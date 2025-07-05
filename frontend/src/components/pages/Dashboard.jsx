@@ -35,7 +35,7 @@ function Dashboard() {
                 setMessage(data.message || "Something went wrong");
                 return;
             }
-            setMessage(data.message || "Tracker deleted successfully!");
+            window.alert(data.message || "Tracker deleted successfully!");
             window.location.reload();
         } catch (error) {
             console.error("Error deleting tracker:", error);
