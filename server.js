@@ -89,18 +89,19 @@ app.post('/add-tracker', async (req, res) => {
     }
 });
 
-app.post('/get-tracker', async (req, res) => {
-    const { email } = req.body;
-    try {
-        if (!email) {
-            return res.status(400).json({ message: 'Email is required' });
-        }
+app.get("/get-tracker", async (req, res) => {
+    const { email } = req.query;
 
-        const trackers = await Tracker.find({ email });
-        return res.status(200).json({ data: trackers });
+    if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+    }
+
+    try {
+        const trackers = await Tracker.find({ email: email.trim().toLowerCase() }); // normalize email
+        res.json({ data: trackers });
     } catch (error) {
-        console.error('❌ Error fetching user trackers:', error);
-        return res.status(500).json({ message: 'Failed to fetch trackers', error });
+        console.error("Error fetching trackers:", error);
+        res.status(500).json({ message: "Server error" });
     }
 });
 
