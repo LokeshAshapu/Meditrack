@@ -97,7 +97,7 @@ app.get("/get-tracker", async (req, res) => {
     }
 
     try {
-        const trackers = await Tracker.find({ email: email.trim().toLowerCase() }); // normalize email
+        const trackers = await Tracker.find({ email: email.trim().toLowerCase() });
         res.json({ data: trackers });
     } catch (error) {
         console.error("Error fetching trackers:", error);
