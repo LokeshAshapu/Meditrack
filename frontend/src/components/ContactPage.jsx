@@ -20,11 +20,11 @@ function ContactPage(){
                 alert("There was an error submitting the form.");
             }
         })
-    .catch(error => {
-      console.error("Form error:", error);
-      alert("Something went wrong.");
-    });
-  }
+        .catch(error => {
+            console.error("Form error:", error);
+            alert("Something went wrong.");
+        });
+    }
     return (
         <div className='bg-white'>
             <NavBar />
