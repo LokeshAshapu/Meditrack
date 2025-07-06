@@ -32,7 +32,7 @@ const MedicalFooter = () => {
         <div>
           <h3 className="text-lg font-semibold mb-3 border-b border-white pb-1">Contact</h3>
           <p className="text-sm">Srikakulam , Andhra Pradesh , 532407</p>
-          <p className="text-sm mt-1">Email: teamconverge@gmail.com</p>
+          <p className="text-sm mt-1">Email: <a href="mailto:teamconverge@gmail.com">teamconverge@gmail.com</a></p>
           <p className="text-sm">Phone: +91 6301451462</p>
         </div>
       </div>
