@@ -9,15 +9,15 @@ import ScrollToTop from './components/ScrollToTop';
 import Dashboard from './components/pages/Dashboard';
 import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
-import SpinnerLoading from './components/spinnerLoading';
+import LoadingWrapper from './components/LoadingWrapper';
 function App() {
 
   return (
     <>
       <Router>
             <ScrollToTop />
+            <LoadingWrapper>
             <Routes>
-                <Route path="/loading" element={<SpinnerLoading />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/main" element={<MainPage />} />
@@ -27,6 +27,7 @@ function App() {
                 <Route path="/" element={<WelcomePage />} />
                 <Route path='/Dashboard' element={<Dashboard/>} />
             </Routes>
+            </LoadingWrapper>
       </Router>
     </>
   )

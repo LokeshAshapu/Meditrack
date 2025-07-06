@@ -5,7 +5,7 @@ function SpinnerLoading() {
     useEffect(() => {
         const timer = setTimeout(() => {
             window.location.href = "/main";
-        }, 3000);
+        }, 2000);
 
         return () => clearTimeout(timer);
     }, []);
@@ -16,7 +16,7 @@ function SpinnerLoading() {
                 height="80"
                 width="80"
                 radius="9"
-                color="#4fa94d"
+                color="SlateBlue"
                 ariaLabel="three-dots-loading"
                 wrapperStyle={{}}
                 wrapperClassName=""
