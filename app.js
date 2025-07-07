@@ -122,10 +122,10 @@ app.delete('/delete-tracker/:id', async (req, res) => {
 
 // app.get('/', (req, res) => res.send('Server is running...'));
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "frontend", "public")));
 
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+    res.sendFile(path.join(__dirname, "frontend", "public", "index.html"));
 });
 
 
