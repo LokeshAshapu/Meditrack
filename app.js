@@ -122,9 +122,12 @@ app.delete('/delete-tracker/:id', async (req, res) => {
 
 // app.get('/', (req, res) => res.send('Server is running...'));
 
+app.use(express.static(path.join(__dirname, "public")));
+
 app.get("/", (req, res) => {
-    res.render("index");
+    res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
