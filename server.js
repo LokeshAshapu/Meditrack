@@ -119,7 +119,11 @@ app.delete('/delete-tracker/:id', async (req, res) => {
     }
 });
 
-app.get('/', (req, res) => res.send('Server is running...'));
+// app.get('/', (req, res) => res.send('Server is running...'));
+
+app.get("/", (req, res) => {
+    res.render("index");
+});
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -157,10 +161,6 @@ cron.schedule('* * * * *', async () => {
     }
 });
 
-
-app.get("/", (req, res) => {
-    res.render("index");
-});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
