@@ -2,6 +2,7 @@
   "main": "app.js",
   "scripts": {
     "dev": "nodemon app.js",
+    "postinstall": "cd frontend && npm install && npm run build",
     "start": "node app.js"
   },
   "dependencies": {
