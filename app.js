@@ -122,10 +122,10 @@ app.delete('/delete-tracker/:id', async (req, res) => {
 
 // app.get('/', (req, res) => res.send('Server is running...'));
 
-app.use(express.static(path.join(__dirname, "frontend")));
+app.use(express.static(path.join(__dirname, "frontend", "dist")));
 
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "frontend","index.html"));
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
 });
 
 
@@ -165,8 +165,6 @@ cron.schedule('* * * * *', async () => {
     }
 });
 
-app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "views"));
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 5000;
