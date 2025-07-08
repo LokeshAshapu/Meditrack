@@ -6,6 +6,7 @@ const cron = require("node-cron");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 const path = require("path");
+const pathToRegexp = require("path-to-regexp");
 
 const app = express();
 app.use(cors());
@@ -41,12 +42,10 @@ app.post("/signup", async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = await User.create({ email, password: hashedPassword });
         console.log("✅ User created:", newUser.email);
-        return res
-            .status(201)
-            .json({
-                message: "User created successfully",
-                user: { email: newUser.email },
-            });
+        return res.status(201).json({
+            message: "User created successfully",
+            user: { email: newUser.email },
+        });
     } catch (error) {
         console.error("❌ Error creating user:", error);
         return res.status(500).json({ message: "Internal server error" });
