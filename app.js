@@ -142,8 +142,8 @@ app.delete("/delete-tracker/:id", async (req, res) => {
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, "frontend", "dist")));
 
-// Basic route for root
-app.get("/", (req, res) => {
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
 });
 
