@@ -175,11 +175,14 @@ cron.schedule("* * * * *", async () => {
     }
 });
 
+// API Routes should be defined before static files
+// (All your API routes are already defined above)
+
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, "frontend", "dist")));
 
-// Catch-all handler: send back React's index.html file for any non-API routes
-app.get("*", (req, res) => {
+// Handle React Router routes - catch all non-API routes
+app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
 });
 
