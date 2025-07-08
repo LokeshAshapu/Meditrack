@@ -144,12 +144,6 @@ app.delete("/delete-tracker/:id", async (req, res) => {
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, "frontend", "dist")));
 
-// API routes should come before the catch-all route
-app.get("/api/user/:id", (req, res) => {
-    const userId = req.params.id;
-    res.json({ userId: userId });
-});
-
 // Catch-all handler: send back React's index.html file for any non-API routes
 app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
