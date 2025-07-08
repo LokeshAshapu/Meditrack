@@ -6,7 +6,6 @@ const cron = require("node-cron");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 const path = require("path");
-const pathToRegexp = require("path-to-regexp");
 
 const app = express();
 app.use(cors());
