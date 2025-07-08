@@ -1,71 +1,88 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const nodemailer = require('nodemailer');
-const cron = require('node-cron');
-const bcrypt = require('bcrypt');
-require('dotenv').config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const nodemailer = require("nodemailer");
+const cron = require("node-cron");
+const bcrypt = require("bcrypt");
+require("dotenv").config();
 const path = require("path");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const mongoUri = 'mongodb+srv://lokeshashapu:Loki_%40506@cluster0.57zntl1.mongodb.net/meditrack?retryWrites=true&w=majority';
-mongoose.connect(mongoUri)
-    .then(() => console.log('✅ MongoDB connected'))
-    .catch(err => console.error('❌ MongoDB connection error:', err));
+const mongoUri =
+    "mongodb+srv://lokeshashapu:Loki_%40506@cluster0.57zntl1.mongodb.net/meditrack?retryWrites=true&w=majority";
+mongoose
+    .connect(mongoUri)
+    .then(() => console.log("✅ MongoDB connected"))
+    .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
 });
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
-app.post('/signup', async (req, res) => {
+app.post("/signup", async (req, res) => {
     const { email, password } = req.body;
     try {
         if (!email || !password) {
-            return res.status(400).json({ message: 'Email and password are required' });
+            return res
+                .status(400)
+                .json({ message: "Email and password are required" });
         }
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ message: 'User already exists' });
+            return res.status(400).json({ message: "User already exists" });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = await User.create({ email, password: hashedPassword });
-        console.log('✅ User created:', newUser.email);
-        return res.status(201).json({ message: 'User created successfully', user: { email: newUser.email } });
+        console.log("✅ User created:", newUser.email);
+        return res
+            .status(201)
+            .json({
+                message: "User created successfully",
+                user: { email: newUser.email },
+            });
     } catch (error) {
-        console.error('❌ Error creating user:', error);
-        return res.status(500).json({ message: 'Internal server error' });
+        console.error("❌ Error creating user:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
-app.post('/login', async (req, res) => {
+app.post("/login", async (req, res) => {
     const { email, password } = req.body;
     try {
         if (!email || !password) {
-            return res.status(400).json({ message: 'Email and password are required' });
+            return res
+                .status(400)
+                .json({ message: "Email and password are required" });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res
+                .status(401)
+                .json({ message: "Invalid email or password" });
         }
 
         const isPasswordMatch = await bcrypt.compare(password, user.password);
         if (!isPasswordMatch) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+            return res
+                .status(401)
+                .json({ message: "Invalid email or password" });
         }
 
-        console.log('✅ User logged in:', user.email);
-        return res.status(200).json({ message: 'Login successful', user: { email: user.email } });
+        console.log("✅ User logged in:", user.email);
+        return res
+            .status(200)
+            .json({ message: "Login successful", user: { email: user.email } });
     } catch (error) {
-        console.error('❌ Error logging in user:', error);
-        return res.status(500).json({ message: 'Internal server error' });
+        console.error("❌ Error logging in user:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
@@ -74,19 +91,19 @@ const trackerSchema = new mongoose.Schema({
     medicine: { type: String, required: true },
     time: { type: String, required: true },
 });
-const Tracker = mongoose.model('Tracker', trackerSchema);
-app.post('/add-tracker', async (req, res) => {
+const Tracker = mongoose.model("Tracker", trackerSchema);
+app.post("/add-tracker", async (req, res) => {
     const { email, medicine, time } = req.body;
     try {
         if (!email || !medicine || !time) {
-            return res.status(400).json({ message: 'Missing required fields' });
+            return res.status(400).json({ message: "Missing required fields" });
         }
 
         await Tracker.create({ email, medicine, time });
-        return res.json({ message: 'Tracker saved successfully' });
+        return res.json({ message: "Tracker saved successfully" });
     } catch (error) {
-        console.error('❌ Error saving tracker:', error);
-        return res.status(500).json({ message: 'Internal server error' });
+        console.error("❌ Error saving tracker:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
@@ -98,7 +115,9 @@ app.get("/get-tracker", async (req, res) => {
     }
 
     try {
-        const trackers = await Tracker.find({ email: email.trim().toLowerCase() });
+        const trackers = await Tracker.find({
+            email: email.trim().toLowerCase(),
+        });
         res.json({ data: trackers });
     } catch (error) {
         console.error("Error fetching trackers:", error);
@@ -106,17 +125,19 @@ app.get("/get-tracker", async (req, res) => {
     }
 });
 
-app.delete('/delete-tracker/:id', async (req, res) => {
+app.delete("/delete-tracker/:id", async (req, res) => {
     const { id } = req.params;
     try {
         const deletedTracker = await Tracker.findByIdAndDelete(id);
         if (!deletedTracker) {
-            return res.status(404).json({ message: 'Tracker not found' });
+            return res.status(404).json({ message: "Tracker not found" });
         }
-        return res.status(200).json({ message: 'Tracker deleted successfully' });
+        return res
+            .status(200)
+            .json({ message: "Tracker deleted successfully" });
     } catch (error) {
-        console.error('❌ Error deleting tracker:', error);
-        return res.status(500).json({ message: 'Internal server error' });
+        console.error("❌ Error deleting tracker:", error);
+        return res.status(500).json({ message: "Internal server error" });
     }
 });
 
@@ -128,9 +149,13 @@ app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
 });
 
+app.get("/user/:id", (req, res) => {
+    const userId = req.params.id;
+    res.send(`User ID: ${userId}`);
+});
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -142,7 +167,7 @@ async function sendReminder(to, medicine, time) {
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to,
-            subject: '💊 Medicine Reminder',
+            subject: "💊 Medicine Reminder",
             text: `Hey! It's time to take your medicine: ${medicine} at ${time}`,
         });
         console.log(`📧 Reminder sent to ${to}`);
@@ -150,9 +175,9 @@ async function sendReminder(to, medicine, time) {
         console.error(`❌ Failed to send email to ${to}`, error);
     }
 }
-cron.schedule('* * * * *', async () => {
+cron.schedule("* * * * *", async () => {
     const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
     console.log(`⏱️ Checking reminders for ${currentTime}`);
 
     try {
@@ -161,7 +186,7 @@ cron.schedule('* * * * *', async () => {
             await sendReminder(tracker.email, tracker.medicine, tracker.time);
         }
     } catch (error) {
-        console.error('❌ Error during scheduled check:', error);
+        console.error("❌ Error during scheduled check:", error);
     }
 });
 
