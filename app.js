@@ -139,14 +139,6 @@ app.delete("/delete-tracker/:id", async (req, res) => {
     }
 });
 
-// Serve static files from React build
-app.use(express.static(path.join(__dirname, "frontend", "dist")));
-
-// Catch-all handler: send back React's index.html file for any non-API routes
-app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
-});
-
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -181,6 +173,14 @@ cron.schedule("* * * * *", async () => {
     } catch (error) {
         console.error("❌ Error during scheduled check:", error);
     }
+});
+
+// Serve static files from React build
+app.use(express.static(path.join(__dirname, "frontend", "dist")));
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "frontend", "dist", "index.html"));
 });
 
 const PORT = process.env.PORT || 5000;
