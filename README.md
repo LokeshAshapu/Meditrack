@@ -1,6 +1,6 @@
 # 🏥 MediTrack
 
-**MediTrack** is a secure and user-friendly web application that helps users manage their personal medical records digitally. With MediTrack, users can register/login, upload and store medical files, view or delete them from a personal dashboard, and even share those records with doctors via email — all within a simple and intuitive interface.
+**MediTrack** is a secure and user-friendly web application for managing personal medical records. It allows users to upload, organize, and share their medical documents digitally. Built with Node.js, Express, MongoDB, and EJS, MediTrack aims to streamline healthcare documentation for both patients and medical professionals.
 
 ---
 
@@ -8,7 +8,6 @@
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
-- [Installation & Setup](#installation--setup)
 - [Usage](#usage)
 - [Screenshots](#screenshots)
 - [Code Highlights](#code-highlights)
@@ -21,11 +20,11 @@
 
 ## 🚀 Features
 
-- 🔐 **User Authentication** – Secure registration and login using hashed passwords
-- 📁 **Upload & Store Files** – Upload medical documents (PDF, JPG, PNG, etc.)
-- 📂 **Dashboard** – View, manage, and delete your records
-- 📤 **Email Sharing** – Send medical files directly to a doctor's email
-- 🌐 **Responsive UI** – Accessible on mobile and desktop with clean EJS templates
+- 🔐 **Authentication** – Secure user registration and login
+- 📁 **File Upload** – Upload medical documents (PDFs, images)
+- 🗂️ **Dashboard** – View, download, or delete records
+- 📤 **Share via Email** – Send medical records directly to doctors
+- 💻 **Responsive Design** – Mobile-friendly and accessible UI
 
 ---
 
@@ -37,17 +36,42 @@
 | Frontend     | EJS, HTML, CSS           |
 | Database     | MongoDB with Mongoose    |
 | File Upload  | Multer                   |
-| Email Service| Nodemailer (SMTP)        |
-| Auth/Session | express-session, bcrypt  |
+| Email Service| Nodemailer               |
+| Auth & Session | express-session, bcrypt |
 
 ---
 
-## ⚙️ Installation & Setup
+## 📤 Usage
 
-Follow these steps to set up MediTrack locally:
+1. **Register** for a new account or **log in**.
+2. **Upload** medical records such as prescriptions, reports, and test results.
+3. **Manage** records through your personal dashboard (view, delete, download).
+4. **Share** selected records securely via email to your doctor.
 
-### 1. Clone the Repository
+---
 
-```bash
-git clone https://github.com/LokeshAshapu/Meditrack.git
-cd Meditrack
+## 📸 Screenshots
+
+> *(Screenshots of the interface can be added here)*
+
+- Login & Registration Page  
+- File Upload Interface  
+- Dashboard with Records  
+- Email Sharing Form  
+
+---
+
+## 🧩 Code Highlights
+
+### Uploading Files with Multer
+
+```javascript
+router.post('/upload', upload.single('record'), async (req, res) => {
+  const record = new Record({
+    user: req.user._id,
+    filename: req.file.filename,
+    originalName: req.file.originalname,
+  });
+  await record.save();
+  res.redirect('/dashboard');
+});
