@@ -18,19 +18,19 @@ mongoose
     .then(() => console.log("✅ MongoDB connected"))
     .catch((err) => console.error("❌ MongoDB connection error:", err));
 
+// User Schema & Model
 const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
 });
 const User = mongoose.model("User", userSchema);
 
+// User Signup
 app.post("/signup", async (req, res) => {
     const { email, password } = req.body;
     try {
         if (!email || !password) {
-            return res
-                .status(400)
-                .json({ message: "Email and password are required" });
+            return res.status(400).json({ message: "Email and password are required" });
         }
 
         const existingUser = await User.findOne({ email });
@@ -51,45 +51,41 @@ app.post("/signup", async (req, res) => {
     }
 });
 
+// User Login
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
     try {
         if (!email || !password) {
-            return res
-                .status(400)
-                .json({ message: "Email and password are required" });
+            return res.status(400).json({ message: "Email and password are required" });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res
-                .status(401)
-                .json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
         const isPasswordMatch = await bcrypt.compare(password, user.password);
         if (!isPasswordMatch) {
-            return res
-                .status(401)
-                .json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
         console.log("✅ User logged in:", user.email);
-        return res
-            .status(200)
-            .json({ message: "Login successful", user: { email: user.email } });
+        return res.status(200).json({ message: "Login successful", user: { email: user.email } });
     } catch (error) {
         console.error("❌ Error logging in user:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
 
+// Tracker Schema & Model
 const trackerSchema = new mongoose.Schema({
     email: { type: String, required: true },
     medicine: { type: String, required: true },
     time: { type: String, required: true },
 });
 const Tracker = mongoose.model("Tracker", trackerSchema);
+
+// Add Tracker
 app.post("/add-tracker", async (req, res) => {
     const { email, medicine, time } = req.body;
     try {
@@ -105,6 +101,7 @@ app.post("/add-tracker", async (req, res) => {
     }
 });
 
+// Get Tracker
 app.get("/get-tracker", async (req, res) => {
     const { email } = req.query;
 
@@ -118,11 +115,12 @@ app.get("/get-tracker", async (req, res) => {
         });
         res.json({ data: trackers });
     } catch (error) {
-        console.error("Error fetching trackers:", error);
+        console.error("❌ Error fetching trackers:", error);
         res.status(500).json({ message: "Server error" });
     }
 });
 
+// Delete Tracker
 app.delete("/delete-tracker/:id", async (req, res) => {
     const { id } = req.params;
     try {
@@ -130,15 +128,14 @@ app.delete("/delete-tracker/:id", async (req, res) => {
         if (!deletedTracker) {
             return res.status(404).json({ message: "Tracker not found" });
         }
-        return res
-            .status(200)
-            .json({ message: "Tracker deleted successfully" });
+        return res.status(200).json({ message: "Tracker deleted successfully" });
     } catch (error) {
         console.error("❌ Error deleting tracker:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 });
 
+// Email Reminders
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -160,6 +157,8 @@ async function sendReminder(to, medicine, time) {
         console.error(`❌ Failed to send email to ${to}`, error);
     }
 }
+
+// Run cron job every minute
 cron.schedule("* * * * *", async () => {
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
@@ -175,16 +174,14 @@ cron.schedule("* * * * *", async () => {
     }
 });
 
-
+// Serve frontend
 const publicPath = path.join(__dirname, 'frontend', 'public');
-
 app.use(express.static(publicPath));
-
 app.get('*', (req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
+    res.sendFile(path.join(publicPath, 'index.html'));
 });
 
-devTools=false;
+// Start Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server is running on port ${PORT}`);
