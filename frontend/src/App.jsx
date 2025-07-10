@@ -10,6 +10,10 @@ import Dashboard from './components/pages/Dashboard';
 import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
 import LoadingWrapper from './components/LoadingWrapper';
+import { disableReactDevTools } from '@fvilers/disable-react-devtools';
+if (import.meta.env.MODE === 'production') {
+  disableReactDevTools();
+}
 function App() {
 
   return (
