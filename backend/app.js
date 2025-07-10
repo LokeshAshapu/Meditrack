@@ -176,10 +176,12 @@ cron.schedule("* * * * *", async () => {
 });
 
 
-app.use(express.static(path.join(__dirname, 'frontend')));
+const publicPath = path.join(__dirname, 'frontend', 'public');
+
+app.use(express.static(publicPath));
 
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 devTools=false;
