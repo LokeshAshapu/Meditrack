@@ -52,7 +52,6 @@
 
 ## 📸 Screenshots
 
-> *(Screenshots of the interface can be added here)*
 
 - Login & Registration Page  
 - File Upload Interface  
