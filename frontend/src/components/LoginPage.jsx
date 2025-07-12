@@ -11,7 +11,7 @@ function LoginPage() {
         const password = event.target.password.value;
 
         try {
-            const response = await fetch("http://localhost:5000/login", {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE}/login`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -40,7 +40,7 @@ function LoginPage() {
                 <h2 className="text-2xl font-bold text-center mb-6">Sign In</h2>
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">Email:</label>
                         <input
                             type="email"
                             id="email"
@@ -51,7 +51,7 @@ function LoginPage() {
                         />
                     </div>
                     <div className="mb-6">
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">Password:</label>
                         <input
                             type="password"
                             id="password"
@@ -68,7 +68,8 @@ function LoginPage() {
                         Sign In
                     </button>
                     <p className="text-gray-500 mt-3">
-                        If not already registered, <a href="/signup" className="text-black hover:underline hover:text-blue-600">Sign Up</a>
+                        If not already registered,{" "}
+                        <a href="/signup" className="text-black hover:underline hover:text-blue-600">Sign Up</a>
                     </p>
                 </form>
             </div>

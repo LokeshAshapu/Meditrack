@@ -11,7 +11,7 @@ function Dashboard() {
     useEffect(() => {
         const fetchCards = async () => {
             try {
-                const res = await fetch(`http://localhost:5000/get-tracker?email=${email}`);
+                const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-tracker?email=${email}`);
                 const data = await res.json();
                 setCards(data.data);
             } catch (error) {
@@ -24,7 +24,7 @@ function Dashboard() {
 
     const handleDelete = async (id) => {
         try {
-            const res = await fetch(`http://localhost:5000/delete-tracker/${id}`, {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE}/delete-tracker/${id}`, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",

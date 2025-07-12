@@ -9,7 +9,7 @@ function Tracker() {
     const [message, setMessage] = useState("");
     const handleSubmit = async (e) => {
     e.preventDefault();
-    const res = await fetch("http://localhost:5000/add-tracker", {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE}/add-tracker`, {
         method: "POST",
         headers: {
         "Content-Type": "application/json",
@@ -40,7 +40,7 @@ function Tracker() {
         </h1>
         <div className="flex flex-col lg:flex-row items-center justify-around bg-yellow-50 p-6 rounded-lg shadow-md gap-8">
             <img
-            src="src/assets/remainder.png"
+            src="/remainder.png"
             alt="tracker"
             className="rounded-md w-full md:w-2/3 lg:w-1/2"
             />

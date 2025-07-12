@@ -26,14 +26,14 @@ function MainPage() {
                         </p>
                     </div>
                     <img
-                        src="src/assets/medicine.png"
+                        src="/medicine.png"
                         alt="Medicine"
                         className="rounded-xl shadow-2xl w-full md:w-1/2"
                     />
                 </div>
                 <div className="flex flex-col md:flex-row items-center gap-10 mt-21">
                     <img
-                        src="src/assets/dosage_limit.png"
+                        src="/dosage_limit.png"
                         alt="Dosage Limit"
                         className="rounded-xl shadow-2xl w-full md:w-1/2"
                     />
