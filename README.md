@@ -43,6 +43,7 @@
 
 1. **Register** for a new account or **log in**.
 2. **Manage** the data what you can upload.
+3. **Mail Feature** mail to the users who use the tracking feature
 
 ---
 
