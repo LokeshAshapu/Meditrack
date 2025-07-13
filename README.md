@@ -21,8 +21,7 @@
 ## 🚀 Features
 
 - 🔐 **Authentication** – Secure user registration and login
-- 📁 **File Upload** – Upload medical documents (PDFs, images)
-- 🗂️ **Dashboard** – View, download, or delete records
+- 🗂️ **Dashboard** – View, Add or delete records
 - 📤 **Share via Email** – Send medical records directly to doctors
 - 💻 **Responsive Design** – Mobile-friendly and accessible UI
 
