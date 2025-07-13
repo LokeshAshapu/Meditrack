@@ -43,6 +43,7 @@
 ## 📤 Usage
 
 1. **Register** for a new account or **log in**.
+2. **Manage** the data what you can upload.
 
 ---
 
