@@ -33,9 +33,8 @@
 | Category     | Technology              |
 |--------------|--------------------------|
 | Backend      | Node.js, Express.js      |
-| Frontend     | EJS, HTML, CSS           |
+| Frontend     | HTML, Tailwind CSS       |
 | Database     | MongoDB with Mongoose    |
-| File Upload  | Multer                   |
 | Email Service| Nodemailer               |
 | Auth & Session | express-session, bcrypt |
 
@@ -44,9 +43,6 @@
 ## 📤 Usage
 
 1. **Register** for a new account or **log in**.
-2. **Upload** medical records such as prescriptions, reports, and test results.
-3. **Manage** records through your personal dashboard (view, delete, download).
-4. **Share** selected records securely via email to your doctor.
 
 ---
 
