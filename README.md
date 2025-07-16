@@ -48,8 +48,6 @@
 ---
 
 ## 📸 Screenshots
-
-(📸Screen Shots here)
 - Login & Registration Page  
 - File Upload Interface  
 - Dashboard with Records  
