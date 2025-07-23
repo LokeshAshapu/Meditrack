@@ -1,7 +1,7 @@
 {
   "name": "meditrack-root",
   "version": "1.0.0",
-  "main":"index.js",
+  "main":"app.js",
   "scripts": {
     "install": "cd frontend && npm install && cd ../backend && npm install",
     "build": "cd frontend && npm run dev",
