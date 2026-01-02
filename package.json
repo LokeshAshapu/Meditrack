@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "start": "npm --prefix backend start",
-    "dev": "concurrently \"npm --prefix frontend start\" \"npm --prefix backend start\""
+    "dev": "concurrently \"npm --prefix frontend run dev\" \"npm --prefix backend run dev\""
   },
   "devDependencies": {
-    "concurrently": "^8.0.1"
+    "concurrently": "^8.2.2"
   }
 }

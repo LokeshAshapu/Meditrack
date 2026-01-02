@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { requestPermissionAndToken } from "../firebase";
 
 function LoginPage() {
     const navigate = useNavigate();
@@ -24,6 +25,12 @@ function LoginPage() {
             if (response.ok) {
                 alert("Login successful");
                 localStorage.setItem("userEmail", email);
+                
+                // --- FIX ---
+                // Wait for the token registration to try
+                await requestPermissionAndToken();
+                // --- END OF FIX ---
+
                 navigate("/main");
             } else {
                 alert(data.message || "Login failed");
