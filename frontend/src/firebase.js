@@ -35,16 +35,16 @@ export const requestPermissionAndToken = async () => {
       console.log("No registration token available. Request permission to generate one.");
       return;
     }
-    
+
     console.log("FCM Token:", token);
-    
+
     // 3. Send token to backend
     const email = localStorage.getItem("userEmail");
     if (!email) {
       console.log("User not logged in, can't register token.");
       return; // We'll try again on login
     }
-    
+
     await fetch(`${import.meta.env.VITE_API_BASE}/register-fcm-token`, {
       method: "POST",
       headers: {
@@ -63,6 +63,11 @@ export const requestPermissionAndToken = async () => {
 // Listen for messages when the app is in the foreground
 onMessage(messaging, (payload) => {
   console.log("Message received in foreground: ", payload);
-  // You can show a custom toast or alert here
-  alert(`Reminder: ${payload.notification.body}`);
+
+  // Play the SOS Sound
+  const audio = new Audio('/thunder_alert.wav');
+  audio.play().catch(err => console.error("Error playing sound:", err));
+
+  // Show alert
+  alert(`🚨 SOS ALERT: ${payload.notification.body}`);
 });

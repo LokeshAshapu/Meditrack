@@ -3,18 +3,10 @@ import SpinnerLoading from "./spinnerLoading";
 import { useLocation } from "react-router-dom";
 
 function LoadingWrapper({ children }) {
-    const location = useLocation();
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        setLoading(true);
-        const timer = setTimeout(() => {
-            setLoading(false);
-        }, 1000);
-        return () => clearTimeout(timer);
-    }, [location.pathname]);
-
-    return loading ? <SpinnerLoading /> : <>{children}</>;
+    // Simply render children instantly. 
+    // If global loading is needed later, we can add it here, 
+    // but for now we want instant navigation as per user request.
+    return <>{children}</>;
 }
 
 export default LoadingWrapper;

@@ -1,14 +1,9 @@
-import React ,{useEffect} from "react";
+import React, { useEffect } from "react";
 import { ThreeDots } from "react-loader-spinner";
 
 function SpinnerLoading() {
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            window.location.href = "/main";
-        }, 2000);
+    // Logic removed to make this a pure UI component
 
-        return () => clearTimeout(timer);
-    }, []);
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100">

@@ -1,11 +1,9 @@
 import React from 'react';
-import NavBar from './NavBar';
 import { Link } from 'react-router-dom';
-import MedicalFooter from './MedicalFooter';
 
 
 function MedicalSpecialities() {
-    const Spacalities=[
+    const Spacalities = [
         {
             id: 1,
             name: 'Cardiology',
@@ -45,7 +43,7 @@ function MedicalSpecialities() {
         {
             id: 7,
             name: 'Obstetrics and Gynecology',
-            description:'Obstetrics and Gynecology is the branch of medicine that deals with childbirth and the care of women before, during, and after they give birth.',
+            description: 'Obstetrics and Gynecology is the branch of medicine that deals with childbirth and the care of women before, during, and after they give birth.',
             render_to: 'https://www.youtube.com/watch?v=Nz9msbDY1xE&t=19s'
         },
         {
@@ -117,34 +115,42 @@ function MedicalSpecialities() {
     ]
     return (
         <>
-            <div className='bg-white min-h-screen w-full'>
-                <NavBar />
-                <div className="flex flex-col items-center justify-center px-4 py-8 sm:px-6 md:px-10">
-                    <h1 className='text-2xl sm:text-3xl font-bold text-indigo-600 mb-6 text-center'>Medical Specialities</h1>
+            <div className="min-h-screen w-full px-4 py-12">
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-16">
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-800 dark:text-white mb-4">
+                            Medical Specialities
+                        </h1>
+                        <p className="text-slate-600 dark:text-slate-400 text-lg max-w-2xl mx-auto">
+                            Explore diverse branches of medicine and learn about treatments for various conditions.
+                        </p>
+                    </div>
 
-                    <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 w-full max-w-7xl'>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                         {Spacalities.map((speciality) => (
                             <div
                                 key={speciality.id}
-                                className='bg-slate-100 p-4 rounded-2xl shadow-md hover:shadow-lg transition-shadow duration-300'
+                                className="group relative bg-white/60 dark:bg-slate-800/60 backdrop-blur-md p-6 rounded-3xl shadow-lg border border-white/20 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300"
                             >
-                                <h2 className='text-lg sm:text-xl font-semibold text-black mb-2'>{speciality.name}</h2>
-                                <p className='text-sm sm:text-base text-gray-600'>{speciality.description}</p>
+                                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-3 relative z-10">{speciality.name}</h2>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 relative z-10 leading-relaxed min-h-[80px]">
+                                    {speciality.description}
+                                </p>
                                 {speciality.render_to && (
                                     <a
                                         href={speciality.render_to}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className='text-blue-600 hover:underline mt-2 inline-block text-sm sm:text-base'
+                                        className="relative z-10 inline-flex items-center text-sm font-semibold text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 transition-colors"
                                     >
-                                        Watch Video
+                                        Watch Video <span className="ml-2">→</span>
                                     </a>
                                 )}
                             </div>
                         ))}
                     </div>
                 </div>
-                <MedicalFooter />
             </div>
         </>
     );

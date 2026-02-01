@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 // 1. REMOVE BrowserRouter (aliased as Router) from this import
 import { Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
 import WelcomePage from './components/WelcomePage';
 import MainPage from './components/MainPage';
 import MedicalSpecialities from './components/MedicalSpecialities';
@@ -10,7 +11,14 @@ import ScrollToTop from './components/ScrollToTop';
 import Dashboard from './components/pages/Dashboard';
 import LoginPage from './components/LoginPage';
 import SignupPage from './components/SignupPage';
+import DoctorDashboard from './components/pages/DoctorDashboard';
+import ChatPage from './components/ChatPage';
+import FindDoctors from './components/pages/FindDoctors';
+import DoctorProfile from './components/pages/DoctorProfile';
 import LoadingWrapper from './components/LoadingWrapper';
+import HelpCenter from './components/HelpCenter';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
 import { disableReactDevTools } from '@fvilers/disable-react-devtools';
 import { requestPermissionAndToken } from './firebase';
 
@@ -29,16 +37,25 @@ function App() {
       {/* 2. REMOVE the <Router> wrapper from here */}
       <ScrollToTop />
       <LoadingWrapper>
-      <Routes>
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/main" element={<MainPage />} />
-          <Route path="/medical" element={<MedicalSpecialities />} />
-          <Route path="/tracker" element={<Tracker />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/" element={<WelcomePage />} />
-          <Route path='/Dashboard' element={<Dashboard/>} />
-      </Routes>
+        <Layout>
+          <Routes>
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/main" element={<MainPage />} />
+            <Route path="/medical" element={<MedicalSpecialities />} />
+            <Route path="/tracker" element={<Tracker />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/help" element={<HelpCenter />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/" element={<WelcomePage />} />
+            <Route path='/Dashboard' element={<Dashboard />} />
+            <Route path='/doctor-dashboard' element={<DoctorDashboard />} />
+            <Route path='/messages' element={<ChatPage />} />
+            <Route path='/find-doctors' element={<FindDoctors />} />
+            <Route path='/doctor-profile' element={<DoctorProfile />} />
+          </Routes>
+        </Layout>
       </LoadingWrapper>
       {/* 3. REMOVE the closing </Router> tag */}
     </>
