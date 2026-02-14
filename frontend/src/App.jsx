@@ -15,6 +15,7 @@ import DoctorDashboard from './components/pages/DoctorDashboard';
 import ChatPage from './components/ChatPage';
 import FindDoctors from './components/pages/FindDoctors';
 import DoctorProfile from './components/pages/DoctorProfile';
+import AdminDashboard from './components/pages/AdminDashboard';
 import LoadingWrapper from './components/LoadingWrapper';
 import HelpCenter from './components/HelpCenter';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -54,6 +55,7 @@ function App() {
             <Route path='/messages' element={<ChatPage />} />
             <Route path='/find-doctors' element={<FindDoctors />} />
             <Route path='/doctor-profile' element={<DoctorProfile />} />
+            <Route path='/admin' element={<AdminDashboard />} />
           </Routes>
         </Layout>
       </LoadingWrapper>

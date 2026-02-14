@@ -1,7 +1,27 @@
 # Dependencies
 node_modules/
-pnpm-lock.yaml
-yarn.lock
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+dist/
+build/
+out/
+
+# Misc
+.DS_Store
+*.pem
+*.log
+*.swo
+*.swp
+.idea/
+.vscode/
+*.zip
+*.tar.gz
+*.rar
 
 # Environment Variables
 .env
@@ -9,22 +29,19 @@ yarn.lock
 .env.development.local
 .env.test.local
 .env.production.local
+*.env
+*.env.*
 
 # Backend specific
 backend/serviceAccountKey.json
-backend/.env
-backend/node_modules/
-
-# Frontend specific (redundant if frontend/.gitignore exists but good for safety)
-frontend/node_modules/
-frontend/.env
-frontend/dist/
-
-# System Files
-.DS_Store
-Thumbs.db
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# Lock files (optional, usually you want to commit these but sometimes not in monorepos depending on setup)
+# yarn.lock
+# package-lock.json
+# pnpm-lock.yaml

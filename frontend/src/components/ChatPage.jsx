@@ -33,12 +33,14 @@ function ChatPage() {
                     // For now, we just rely on email if name not available, or fetch full details.
                     // Ideally /get-chats should return enriched data.
                     // We'll simplisticly assume participants[0] or [1] is the other person.
+                    // Backend now returns enriched data with 'otherName' and 'otherProfilePic'
                     const enrichedChats = data.chats.map(chat => {
                         const otherEmail = chat.participants.find(p => p !== currentUser.email);
                         return {
                             ...chat,
-                            name: otherEmail, // We should really fetch the name, but email ok for v1
-                            otherEmail: otherEmail
+                            name: chat.otherName || otherEmail,
+                            otherEmail: otherEmail,
+                            profilePic: chat.otherProfilePic
                         };
                     });
                     setChats(enrichedChats);
@@ -212,8 +214,12 @@ function ChatPage() {
                             className={`p-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700 ${selectedChat?.id === chat.id ? 'bg-cyan-50 dark:bg-cyan-900/20' : ''}`}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                                    <User size={20} className="text-slate-500" />
+                                <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
+                                    {chat.profilePic ? (
+                                        <img src={chat.profilePic} alt={chat.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <User size={20} className="text-slate-500" />
+                                    )}
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-slate-800 dark:text-white truncate max-w-[150px]">{chat.name}</h3>
@@ -233,8 +239,12 @@ function ChatPage() {
                 {selectedChat ? (
                     <>
                         <div className="p-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3 shadow-sm">
-                            <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center text-cyan-600 font-bold">
-                                {selectedChat.name?.charAt(0).toUpperCase() || "U"}
+                            <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center text-cyan-600 font-bold overflow-hidden">
+                                {selectedChat.profilePic ? (
+                                    <img src={selectedChat.profilePic} alt={selectedChat.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    selectedChat.name?.charAt(0).toUpperCase() || "U"
+                                )}
                             </div>
                             <span className="font-bold text-lg text-slate-800 dark:text-white">{selectedChat.name}</span>
                         </div>

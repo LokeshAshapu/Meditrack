@@ -480,6 +480,93 @@ app.put("/update-tracker/:id", async (req, res) => {
     }
 });
 
+// --- 🛠️ Admin Routes 🛠️ ---
+
+// 🛡️ Middleware to Verify Admin
+const verifyAdmin = async (req, res, next) => {
+    const { email } = req.body.email ? req.body : req.query; // Handle both GET and POST
+
+    if (!email) {
+        return res.status(400).json({ message: "Email is required for verification" });
+    }
+
+    try {
+        const userRef = db.collection('users').doc(email);
+        const userDoc = await userRef.get();
+
+        if (!userDoc.exists || userDoc.data().role !== 'admin') {
+            return res.status(403).json({ message: "Access denied. Admins only." });
+        }
+
+        next();
+    } catch (error) {
+        console.error("Auth error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// --- 🛠️ Admin Routes 🛠️ ---
+
+// 1. Get Unverified Doctors
+app.get("/get-unverified-doctors", verifyAdmin, async (req, res) => {
+    try {
+        const usersRef = db.collection('users');
+        const snapshot = await usersRef.where('role', '==', 'doctor').where('isVerified', '==', false).get();
+
+        const doctors = [];
+        snapshot.forEach(doc => {
+            doctors.push(doc.data());
+        });
+
+        return res.json({ doctors });
+    } catch (error) {
+        console.error("Error fetching unverified doctors:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+});
+
+// 2. Verify Doctor
+app.post("/verify-doctor", verifyAdmin, async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+
+    try {
+        await db.collection('users').doc(email).update({ isVerified: true });
+        return res.json({ message: "Doctor verified successfully" });
+    } catch (error) {
+        console.error("Error verifying doctor:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+});
+
+// 3. Reject Doctor (Delete User)
+app.post("/reject-doctor", verifyAdmin, async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+
+    try {
+        await db.collection('users').doc(email).delete();
+        return res.json({ message: "Doctor rejected and removed" });
+    } catch (error) {
+        console.error("Error rejecting doctor:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+});
+
+// 4. Setup Admin (Dev Tool)
+app.post("/make-me-admin", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+
+    try {
+        await db.collection('users').doc(email).update({ role: 'admin' });
+        return res.json({ message: "User promoted to Admin" });
+    } catch (error) {
+        console.error("Error promoting user:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+});
+
 // 📥 Get tracker for user
 app.get("/get-tracker", async (req, res) => {
     const { email } = req.query;
@@ -649,20 +736,40 @@ app.get("/get-chats", async (req, res) => {
         const snapshot = await chatsRef.where('participants', 'array-contains', email).get();
 
         const chats = [];
-        snapshot.forEach(doc => {
+
+        // Use Promise.all to fetch details in parallel
+        const chatPromises = snapshot.docs.map(async (doc) => {
             const data = doc.data();
-            chats.push({
+            const otherEmail = data.participants.find(p => p !== email);
+
+            let otherName = otherEmail; // Default to email
+            let otherProfilePic = "";
+
+            if (otherEmail) {
+                const userDoc = await db.collection('users').doc(otherEmail).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    otherName = userData.name || otherEmail;
+                    otherProfilePic = userData.profilePic || "";
+                }
+            }
+
+            return {
                 id: doc.id,
                 ...data,
+                otherName,
+                otherProfilePic,
                 lastMessage: data.lastMessage?.text || "No messages yet",
                 lastMessageTime: data.lastMessage?.timestamp || null
-            });
+            };
         });
 
-        // Sort by latest message
-        chats.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
+        const resolvedChats = await Promise.all(chatPromises);
 
-        return res.json({ chats });
+        // Sort by latest message
+        resolvedChats.sort((a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
+
+        return res.json({ chats: resolvedChats });
     } catch (error) {
         console.error("Error fetching chats:", error);
         return res.status(500).json({ message: "Server error" });
@@ -743,6 +850,20 @@ app.post("/send-message", async (req, res) => {
             lastMessage: messageData
         });
 
+        // 🔔 NOTIFICATION: Send Email to Recipient if possible
+        // (In a real app, only if they are offline)
+        try {
+            await transporter.sendMail({
+                from: `"MediTrack" <${process.env.EMAIL_USER}>`,
+                to: recipient, // Assuming recipient is an email
+                subject: "💬 New Message on MediTrack",
+                text: `You have a new message from ${sender}: "${text}"\n\nLog in to reply: ${process.env.VITE_APP_URL || 'http://localhost:5173'}`
+            });
+            console.log(`📧 Message notification sent to ${recipient}`);
+        } catch (notifError) {
+            console.error("Failed to send message notification:", notifError);
+        }
+
         return res.json({ message: "Sent", chatId: finalChatId });
 
     } catch (error) {
@@ -786,6 +907,52 @@ app.put("/edit-message", async (req, res) => {
 });
 
 
+// 💳 Payment Routes (Razorpay)
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
+
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
+app.post("/create-order", async (req, res) => {
+    const { amount, currency } = req.body;
+
+    // Amount must be in subunits (paise for INR, cents for USD)
+    const options = {
+        amount: amount * 100,
+        currency: currency || "INR",
+        receipt: "receipt_" + Math.random().toString(36).substr(2, 9)
+    };
+
+    try {
+        const order = await razorpay.orders.create(options);
+        res.json(order);
+    } catch (error) {
+        console.error("Razorpay Order Error:", error);
+        res.status(500).json({ message: "Failed to create order" });
+    }
+});
+
+app.post("/verify-payment", async (req, res) => {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSignature = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+        .update(body.toString())
+        .digest("hex");
+
+    if (expectedSignature === razorpay_signature) {
+        res.json({ status: "success", message: "Payment verified" });
+    } else {
+        res.status(400).json({ status: "failure", message: "Invalid signature" });
+    }
+});
+
+
 // 📅 Appointment Routes 📅
 
 // 1. Book Appointment
@@ -806,6 +973,26 @@ app.post("/book-appointment", async (req, res) => {
             status: status || "confirmed", // Default to confirmed as per request
             createdAt: new Date().toISOString()
         });
+
+        // 🔔 NOTIFICATION: Send Confirmation Email
+        try {
+            await transporter.sendMail({
+                from: `"MediTrack" <${process.env.EMAIL_USER}>`,
+                to: patientId,
+                subject: "✅ Appointment Confirmed",
+                html: `
+                    <h2>Appointment Confirmed!</h2>
+                    <p>You have successfully booked an appointment with <b>${doctorId}</b>.</p>
+                    <p><b>Date:</b> ${date}</p>
+                    <p><b>Time:</b> ${time}</p>
+                    <br/>
+                    <p>Please join the video call from your dashboard at the scheduled time.</p>
+                `
+            });
+            console.log(`📧 Appointment confirmation sent to ${patientId}`);
+        } catch (emailError) {
+            console.error("Failed to send appointment confirmation:", emailError);
+        }
 
         return res.json({ message: "Appointment booked successfully" });
     } catch (error) {
@@ -836,6 +1023,30 @@ app.get("/get-doctor-appointments", async (req, res) => {
         return res.json({ appointments });
     } catch (error) {
         console.error("Error fetching appointments:", error);
+        return res.status(500).json({ message: "Server error" });
+    }
+});
+
+// 3. Get Patient's Appointments
+app.get("/get-patient-appointments", async (req, res) => {
+    const { email } = req.query;
+    if (!email) return res.status(400).json({ message: "Patient email required" });
+
+    try {
+        const appointmentsRef = db.collection('appointments');
+        const snapshot = await appointmentsRef.where('patientId', '==', email).get();
+
+        const appointments = [];
+        snapshot.forEach(doc => {
+            appointments.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Sort: Upcoming soonest first, then past
+        appointments.sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
+
+        return res.json({ appointments });
+    } catch (error) {
+        console.error("Error fetching patient appointments:", error);
         return res.status(500).json({ message: "Server error" });
     }
 });
@@ -968,6 +1179,82 @@ cron.schedule("* * * * *", async () => {
         console.error("❌ Error during scheduled check:", error);
     }
 });
+
+// ==================== MEDICAL RECORDS ENDPOINTS ====================
+
+// 📤 Upload Medical Record
+app.post("/upload-medical-record", async (req, res) => {
+    const { patientEmail, title, description, fileData, fileName } = req.body;
+
+    if (!patientEmail || !title || !fileData) {
+        return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    try {
+        const recordRef = await db.collection('medicalRecords').add({
+            patientEmail,
+            title,
+            description: description || "",
+            fileData, // Base64 encoded file
+            fileName: fileName || "document",
+            uploadedAt: new Date().toISOString()
+        });
+
+        res.status(200).json({
+            message: "Medical record uploaded successfully",
+            recordId: recordRef.id
+        });
+    } catch (error) {
+        console.error("Error uploading medical record:", error);
+        res.status(500).json({ message: "Failed to upload medical record" });
+    }
+});
+
+// 📥 Get Medical Records for a Patient
+app.get("/get-medical-records", async (req, res) => {
+    const { email } = req.query;
+
+    if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+    }
+
+    try {
+        const snapshot = await db.collection('medicalRecords')
+            .where('patientEmail', '==', email)
+            .orderBy('uploadedAt', 'desc')
+            .get();
+
+        const records = [];
+        snapshot.forEach(doc => {
+            records.push({ id: doc.id, ...doc.data() });
+        });
+
+        res.status(200).json({ records });
+    } catch (error) {
+        console.error("Error fetching medical records:", error);
+        res.status(500).json({ message: "Failed to fetch medical records" });
+    }
+});
+
+// 🗑️ Delete Medical Record
+app.delete("/delete-medical-record/:recordId", async (req, res) => {
+    const { recordId } = req.params;
+
+    if (!recordId) {
+        return res.status(400).json({ message: "Record ID is required" });
+    }
+
+    try {
+        await db.collection('medicalRecords').doc(recordId).delete();
+        res.status(200).json({ message: "Medical record deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting medical record:", error);
+        res.status(500).json({ message: "Failed to delete medical record" });
+    }
+});
+
+// ==================== END OF MEDICAL RECORDS ====================
+
 
 // --- Frontend Serving ---
 // This serves the built React app

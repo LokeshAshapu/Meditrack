@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from "react";
-import { User, LogOut, Calendar, MessageSquare, Activity, Clock, ChevronRight, Users, Bell } from "lucide-react";
+import { User, LogOut, Calendar, MessageSquare, Activity, Clock, ChevronRight, Users, Bell, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function DoctorDashboard() {
@@ -155,13 +156,24 @@ function DoctorDashboard() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => navigate('/messages', { state: { startChatWith: { email: apt.patientId, name: apt.patientName } } })}
-                                                className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg transition-colors"
-                                                title={`Message ${apt.patientName}`}
-                                            >
-                                                <MessageSquare size={20} />
-                                            </button>
+                                            <div className="flex gap-2">
+                                                {apt.status === 'confirmed' && (
+                                                    <button
+                                                        onClick={() => window.open(`https://meet.jit.si/meditrack-${apt.id}`, '_blank')}
+                                                        className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                                        title="Join Video Call"
+                                                    >
+                                                        <Video size={20} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => navigate('/messages', { state: { startChatWith: { email: apt.patientId, name: apt.patientName } } })}
+                                                    className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg transition-colors"
+                                                    title={`Message ${apt.patientName}`}
+                                                >
+                                                    <MessageSquare size={20} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { User, Mail, Phone, Edit2, Trash2, Clock, Repeat, Calendar, Check, TrendingUp, Sparkles, FileText, Upload, Camera } from "lucide-react";
+import { User, LogOut, Check, Trash2, Calendar, Clock, Plus, Layout, Edit2, BarChart2, Repeat, Sparkles, X, Camera, FileText, Video, Mail, Phone, TrendingUp, Upload, FilePlus } from "lucide-react";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
@@ -42,6 +42,12 @@ function Dashboard() {
     const [progress, setProgress] = useState(0);
     const [streak, setStreak] = useState(0);
 
+    // Medical Records State
+    const [medicalRecords, setMedicalRecords] = useState([]);
+    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [uploadData, setUploadData] = useState({ title: "", description: "", file: null });
+    const [isUploading, setIsUploading] = useState(false);
+
     useEffect(() => {
         // Load user from local storage
         const email = localStorage.getItem("userEmail");
@@ -64,7 +70,7 @@ function Dashboard() {
     const loadData = async (email) => {
         setIsLoading(true);
         try {
-            await Promise.all([fetchCards(email), fetchLogs(email), fetchStreak(email)]);
+            await Promise.all([fetchCards(email), fetchLogs(email), fetchStreak(email), fetchAppointments(email), fetchMedicalRecords(email)]);
         } catch (error) {
             console.error("Error loading data:", error);
         } finally {
@@ -109,6 +115,32 @@ function Dashboard() {
             }
         } catch (error) {
             console.error("Error fetching streak:", error);
+        }
+    };
+
+    const [appointments, setAppointments] = useState([]);
+
+    const fetchAppointments = async (email) => {
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-patient-appointments?email=${email}`);
+            const data = await res.json();
+            if (res.ok) {
+                setAppointments(data.appointments);
+            }
+        } catch (error) {
+            console.error("Error fetching appointments:", error);
+        }
+    };
+
+    const fetchMedicalRecords = async (email) => {
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-medical-records?email=${email}`);
+            const data = await res.json();
+            if (res.ok) {
+                setMedicalRecords(data.records);
+            }
+        } catch (error) {
+            console.error("Error fetching medical records:", error);
         }
     };
 
@@ -262,6 +294,81 @@ function Dashboard() {
         });
 
         doc.save("meditrack-report.pdf");
+    };
+
+    // --- Medical Records Functions ---
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 2000000) { // 2MB limit
+                alert("File too large. Please choose a file under 2MB.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setUploadData(prev => ({ ...prev, file: reader.result, fileName: file.name }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleUploadRecord = async (e) => {
+        e.preventDefault();
+        if (!uploadData.title || !uploadData.file) {
+            alert("Please provide a title and upload a file.");
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE}/upload-medical-record`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    patientEmail: userProfile.email,
+                    title: uploadData.title,
+                    description: uploadData.description,
+                    fileData: uploadData.file,
+                    fileName: uploadData.fileName
+                })
+            });
+
+            if (res.ok) {
+                setMessage("Medical record uploaded successfully!");
+                setTimeout(() => setMessage(""), 3000);
+                setIsUploadModalOpen(false);
+                setUploadData({ title: "", description: "", file: null });
+                fetchMedicalRecords(userProfile.email); // Refresh list
+            } else {
+                alert("Failed to upload record.");
+            }
+        } catch (error) {
+            console.error("Error uploading record:", error);
+            alert("Error uploading record.");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleDeleteRecord = async (recordId) => {
+        if (!window.confirm("Are you sure you want to delete this record?")) return;
+
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_BASE}/delete-medical-record/${recordId}`, {
+                method: "DELETE"
+            });
+
+            if (res.ok) {
+                setMessage("Record deleted successfully!");
+                setTimeout(() => setMessage(""), 3000);
+                fetchMedicalRecords(userProfile.email);
+            } else {
+                alert("Failed to delete record.");
+            }
+        } catch (error) {
+            console.error("Error deleting record:", error);
+            alert("Error deleting record.");
+        }
     };
 
     // --- Profile Functions ---
@@ -544,6 +651,111 @@ function Dashboard() {
                             </div>
                         )}
                     </div>
+
+                    {/* APPOINTMENTS SECTION */}
+                    <div className="mt-10">
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-6">
+                            <Calendar className="text-blue-500" />
+                            Upcoming Appointments
+                        </h2>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {appointments.length > 0 ? (
+                                appointments.map((apt) => (
+                                    <div key={apt.id} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-md p-6 rounded-3xl shadow-lg border border-white/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="flex flex-col items-center justify-center w-14 h-14 bg-blue-50 dark:bg-slate-700/50 rounded-2xl text-blue-600 dark:text-blue-400 font-bold border border-blue-100 dark:border-slate-600">
+                                                <span className="text-xs uppercase">{new Date(apt.date).toLocaleDateString('en-US', { month: 'short' })}</span>
+                                                <span className="text-xl">{new Date(apt.date).getDate()}</span>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-slate-800 dark:text-white text-lg">Dr. {apt.doctorId ? apt.doctorId.split('@')[0] : "Doctor"}</h3>
+                                                <p className="text-sm text-slate-500 flex items-center gap-1.5">
+                                                    <Clock size={14} /> {apt.time}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${apt.status === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                {apt.status ? apt.status.charAt(0).toUpperCase() + apt.status.slice(1) : "Confirmed"}
+                                            </span>
+                                            <div className="flex gap-2 items-center">
+                                                {apt.status === 'confirmed' && (
+                                                    <button
+                                                        onClick={() => window.open(`https://meet.jit.si/meditrack-${apt.id}`, '_blank')}
+                                                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-200 transition-colors"
+                                                    >
+                                                        <Video size={14} /> Join Call
+                                                    </button>
+                                                )}
+                                                <button className="text-sm text-slate-400 hover:text-red-500 transition-colors">Cancel</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-8 text-center bg-white/40 dark:bg-slate-800/40 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
+                                    <p className="text-slate-500">No upcoming appointments.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* MEDICAL RECORDS SECTION */}
+                    <div className="mt-10">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                <FileText className="text-purple-500" />
+                                Medical Records
+                            </h2>
+                            <button
+                                onClick={() => setIsUploadModalOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-xl font-semibold hover:bg-purple-200 transition-colors"
+                            >
+                                <FilePlus size={18} />
+                                Upload Record
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {medicalRecords.length > 0 ? (
+                                medicalRecords.map((record) => (
+                                    <div key={record.id} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-md p-6 rounded-3xl shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                                                    <FileText className="text-purple-600" size={20} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800 dark:text-white">{record.title}</h3>
+                                                    <p className="text-xs text-slate-500">{new Date(record.uploadedAt).toLocaleDateString()}</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteRecord(record.id)}
+                                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                        {record.description && (
+                                            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">{record.description}</p>
+                                        )}
+                                        <button
+                                            onClick={() => window.open(record.fileData, '_blank')}
+                                            className="w-full py-2 px-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                        >
+                                            View Document
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-8 text-center bg-white/40 dark:bg-slate-800/40 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
+                                    <p className="text-slate-500">No medical records uploaded yet.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -693,6 +905,62 @@ function Dashboard() {
                             <div className="flex justify-end gap-3 mt-6">
                                 <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
                                 <button type="submit" className="px-6 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700">Update</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* UPLOAD MEDICAL RECORD MODAL */}
+            {isUploadModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[100]">
+                    <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+                        <h2 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white flex items-center gap-2">
+                            <Upload className="text-purple-600" /> Upload Medical Record
+                        </h2>
+                        <form onSubmit={handleUploadRecord} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Title *</label>
+                                <input
+                                    type="text"
+                                    value={uploadData.title}
+                                    onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
+                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-purple-500 outline-none"
+                                    placeholder="e.g., Blood Test Report"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
+                                <textarea
+                                    value={uploadData.description}
+                                    onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
+                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-purple-500 outline-none resize-none"
+                                    rows="3"
+                                    placeholder="Optional notes about this record"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Upload File *</label>
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={handleFileUpload}
+                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-purple-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200"
+                                    required
+                                />
+                                <p className="text-xs text-slate-400 mt-1">Max size: 2MB (Images or PDFs)</p>
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button type="button" onClick={() => setIsUploadModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                                <button
+                                    type="submit"
+                                    disabled={isUploading}
+                                    className="px-6 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50"
+                                >
+                                    {isUploading ? "Uploading..." : "Upload"}
+                                </button>
                             </div>
                         </form>
                     </div>

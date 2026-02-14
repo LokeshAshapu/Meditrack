@@ -69,7 +69,12 @@ function NavBar() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-1">
-                        {userRole === 'doctor' ? (
+                        {userRole === 'admin' ? (
+                            <>
+                                <NavLink to="/admin">Admin Panel</NavLink>
+                                <NavLink to="/messages">Messages</NavLink>
+                            </>
+                        ) : userRole === 'doctor' ? (
                             <>
                                 <NavLink to="/doctor-dashboard">Dashboard</NavLink>
                                 <NavLink to="/messages">Messages</NavLink>

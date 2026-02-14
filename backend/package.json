@@ -17,6 +17,7 @@
     "openai": "^6.17.0",
     "path": "^0.12.7",
     "path-to-regexp": "^6.3.0",
+    "razorpay": "^2.9.6",
     "twilio": "^5.10.4"
   }
 }
