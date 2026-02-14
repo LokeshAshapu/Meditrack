@@ -13,4 +13,4 @@ cmds = [
 ]
 
 [phases.start]
-cmd = "cd backend && node index.js"
+cmd = "cd backend && node app.js"
