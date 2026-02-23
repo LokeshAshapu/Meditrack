@@ -11,7 +11,27 @@ const twilio = require("twilio"); // Import Twilio
 const { initializeApp, cert } = require("firebase-admin/app");
 const { getMessaging } = require("firebase-admin/messaging");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
-const serviceAccount = require("./serviceAccountKey.json");
+
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Production: load credentials from environment variable (Render, etc.)
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        console.log("✅ Firebase credentials loaded from environment variable.");
+    } catch (e) {
+        console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT env var. Make sure it is valid JSON.", e);
+        process.exit(1);
+    }
+} else {
+    // Local development: fall back to local file
+    try {
+        serviceAccount = require("./serviceAccountKey.json");
+        console.log("✅ Firebase credentials loaded from serviceAccountKey.json (local dev).");
+    } catch (e) {
+        console.error("❌ serviceAccountKey.json not found and FIREBASE_SERVICE_ACCOUNT env var is not set. Cannot start server.", e);
+        process.exit(1);
+    }
+}
 
 initializeApp({
     credential: cert(serviceAccount),
