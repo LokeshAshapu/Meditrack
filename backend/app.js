@@ -8,7 +8,7 @@ const path = require("path");
 const twilio = require("twilio"); // Import Twilio
 
 // --- 1. INITIALIZE FIREBASE ADMIN (Correct Modular Syntax) ---
-const { initializeApp, cert } = require("firebase-admin/app");
+const { initializeApp, cert, getApps } = require("firebase-admin/app");
 const { getMessaging } = require("firebase-admin/messaging");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
@@ -33,9 +33,15 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     }
 }
 
-initializeApp({
-    credential: cert(serviceAccount),
-});
+// Guard against double-initialization on Vercel serverless warm starts
+if (getApps().length === 0) {
+    initializeApp({
+        credential: cert(serviceAccount),
+    });
+    console.log("✅ Firebase app initialized.");
+} else {
+    console.log("⚡ Firebase app already initialized (warm start).");
+}
 
 const db = getFirestore();
 // --- End of Firebase Init ---
