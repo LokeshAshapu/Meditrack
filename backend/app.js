@@ -1276,12 +1276,7 @@ app.delete("/delete-medical-record/:recordId", async (req, res) => {
 // ==================== END OF MEDICAL RECORDS ====================
 
 
-// --- Frontend Serving ---
-// This serves the built React app
-const publicPath = path.join(__dirname, "../frontend/dist");
-app.use(express.static(publicPath));
-
-// This handles all other routes and sends them to the React app
-app.get("*", (req, res) => {
-    res.sendFile(path.join(publicPath, "index.html"));
-});
+// --- Serverless Export for Vercel ---
+// The frontend is deployed separately on Vercel.
+// Export the app as a serverless function handler.
+module.exports = app;
