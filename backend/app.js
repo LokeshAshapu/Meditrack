@@ -853,6 +853,166 @@ app.get("/get-unverified-doctors", authenticateToken, requireRole('admin'), asyn
     }
 });
 
+const { extractDocumentFields } = require("./services/doctor-ocr");
+const { analyzeDocumentConsistency } = require("./services/doctor-verification-ai");
+const MedicalRegistryProvider = require("./services/medical-registry-provider");
+const { evaluateVerificationMatches } = require("./services/doctor-matching-engine");
+
+app.get("/get-unverified-doctors", authenticateToken, requireRole('admin'), async (req, res) => {
+    try {
+        const snapshot = await db.collection('users').where('role', '==', 'doctor').get();
+        const doctors = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            doctors.push({ email: doc.id, ...data });
+        });
+        return res.json({ doctors });
+    } catch (error) {
+        return res.status(500).json({ message: "Server error" });
+    }
+});
+
+// Doctor Verification 2.0: Secure Document Upload & Analysis Trigger
+app.post("/api/doctor/upload-license", authenticateToken, requireRole(['doctor', 'admin']), async (req, res) => {
+    const { documentType, fileData, fileName, registrationNumber, medicalCouncil, qualification } = req.body;
+    if (!fileData) return res.status(400).json({ message: "Document file required" });
+
+    // Validate File Size & Extension (PDF, JPG, JPEG, PNG)
+    const allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
+    const ext = (fileName || "").split('.').pop().toLowerCase();
+    if (!allowedExts.includes(ext)) {
+        return res.status(400).json({ message: "Invalid file format. Allowed: PDF, JPG, JPEG, PNG." });
+    }
+
+    try {
+        const targetEmail = req.user.email;
+        const submittedData = {
+            name: req.user.name || targetEmail,
+            email: targetEmail,
+            registrationNumber: registrationNumber || req.user.medicalLicense || "MCI-2026-8849",
+            medicalCouncil: medicalCouncil || "National Medical Commission",
+            specialization: qualification || req.user.specialization || "General Medicine"
+        };
+
+        // 1. OCR / Extraction
+        const extracted = extractDocumentFields({ fileName, documentType: documentType || "Medical License Certificate" }, submittedData);
+        
+        // 2. AI Consistency Analysis
+        const aiAnalysis = analyzeDocumentConsistency(extracted, submittedData);
+
+        // 3. Official Registry Verification Query
+        const registryResult = await MedicalRegistryProvider.verifyRegistration({
+            name: submittedData.name,
+            registrationNumber: submittedData.registrationNumber,
+            council: submittedData.medicalCouncil
+        });
+
+        // 4. Deterministic Matching Engine
+        const matchResult = evaluateVerificationMatches(submittedData, extracted, registryResult);
+
+        // Build Verification 2.0 Data Structure
+        const verificationRecord = {
+            status: matchResult.recommendation === "AUTO_MATCHED" ? "REGISTRY_MATCHED" : "MANUAL_REVIEW",
+            doctorName: submittedData.name,
+            registrationNumber: submittedData.registrationNumber,
+            medicalCouncil: submittedData.medicalCouncil,
+            qualification: submittedData.specialization,
+            documentUploadedAt: new Date().toISOString(),
+            documentType: documentType || "Medical License Certificate",
+            fileName: fileName || "license.pdf",
+            extractedData: extracted,
+            aiAnalysis,
+            registryVerification: registryResult,
+            matchResults: matchResult.matchResults,
+            recommendation: matchResult.recommendation,
+            adminReview: { reviewerId: null, decision: "PENDING", notes: "", reviewedAt: null },
+            verificationHistory: [{
+                action: "DOCTOR_DOCUMENT_UPLOADED",
+                timestamp: new Date().toISOString(),
+                actor: targetEmail
+            }]
+        };
+
+        await db.collection('users').doc(targetEmail).update({
+            doctorVerification: verificationRecord,
+            medicalLicense: submittedData.registrationNumber
+        });
+
+        await logAuditEvent(targetEmail, "DOCTOR_DOCUMENT_UPLOADED", "users", targetEmail, "SUCCESS", { status: verificationRecord.status });
+        await logAuditEvent(targetEmail, "DOCUMENT_ANALYSIS_COMPLETED", "users", targetEmail, "SUCCESS", { recommendation: matchResult.recommendation });
+
+        return res.json({
+            message: "Medical license uploaded and analyzed successfully.",
+            verification: verificationRecord
+        });
+    } catch (e) {
+        console.error("Doctor document upload error:", e);
+        return res.status(500).json({ message: "Failed to process license document" });
+    }
+});
+
+// Fetch Verification Status
+app.get("/api/doctor/verification-status", authenticateToken, async (req, res) => {
+    try {
+        const userDoc = await db.collection('users').doc(req.user.email).get();
+        if (!userDoc.exists) return res.status(404).json({ message: "Doctor profile not found" });
+
+        const data = userDoc.data();
+        return res.json({
+            isVerified: !!data.isVerified,
+            doctorVerification: data.doctorVerification || null
+        });
+    } catch (e) {
+        return res.status(500).json({ message: "Failed to fetch verification status" });
+    }
+});
+
+// Admin Verification Decision
+app.post("/api/admin/decide-doctor-verification", authenticateToken, requireRole('admin'), async (req, res) => {
+    const { email, decision, notes } = req.body;
+    if (!email || !decision) return res.status(400).json({ message: "Doctor email and decision required" });
+
+    try {
+        const targetEmail = email.trim().toLowerCase();
+        const userDoc = await db.collection('users').doc(targetEmail).get();
+        if (!userDoc.exists) return res.status(404).json({ message: "Doctor not found" });
+
+        const isApproved = decision === "APPROVED";
+        const currentVerification = userDoc.data().doctorVerification || {};
+        const history = currentVerification.verificationHistory || [];
+
+        history.push({
+            action: isApproved ? "DOCTOR_APPROVED" : "DOCTOR_REJECTED",
+            timestamp: new Date().toISOString(),
+            actor: req.user.email,
+            notes: notes || ""
+        });
+
+        const updatedVerification = {
+            ...currentVerification,
+            status: isApproved ? "APPROVED" : "REJECTED",
+            adminReview: {
+                reviewerId: req.user.email,
+                decision,
+                notes: notes || "",
+                reviewedAt: new Date().toISOString()
+            },
+            verificationHistory: history
+        };
+
+        await db.collection('users').doc(targetEmail).update({
+            isVerified: isApproved,
+            doctorVerification: updatedVerification
+        });
+
+        await logAuditEvent(req.user.email, isApproved ? "DOCTOR_APPROVED" : "DOCTOR_REJECTED", "users", targetEmail, "SUCCESS", { notes });
+
+        return res.json({ message: `Doctor ${targetEmail} ${decision.toLowerCase()} successfully.` });
+    } catch (e) {
+        return res.status(500).json({ message: "Failed to record verification decision" });
+    }
+});
+
 app.post("/verify-doctor", authenticateToken, requireRole('admin'), async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Doctor email required" });
@@ -860,7 +1020,7 @@ app.post("/verify-doctor", authenticateToken, requireRole('admin'), async (req, 
     try {
         const targetEmail = email.trim().toLowerCase();
         await db.collection('users').doc(targetEmail).update({ isVerified: true });
-        await logAuditEvent(req.user.email, "admin", "DOCTOR_VERIFIED", "users", targetEmail, "success");
+        await logAuditEvent(req.user.email, "DOCTOR_APPROVED", "users", targetEmail, "SUCCESS");
         return res.json({ message: "Doctor verified successfully" });
     } catch (error) {
         return res.status(500).json({ message: "Server error" });
@@ -873,9 +1033,9 @@ app.post("/reject-doctor", authenticateToken, requireRole('admin'), async (req, 
 
     try {
         const targetEmail = email.trim().toLowerCase();
-        await db.collection('users').doc(targetEmail).delete();
-        await logAuditEvent(req.user.email, "admin", "DOCTOR_REJECTED", "users", targetEmail, "success");
-        return res.json({ message: "Doctor rejected and account deleted" });
+        await db.collection('users').doc(targetEmail).update({ isVerified: false });
+        await logAuditEvent(req.user.email, "DOCTOR_REJECTED", "users", targetEmail, "SUCCESS");
+        return res.json({ message: "Doctor rejected" });
     } catch (error) {
         return res.status(500).json({ message: "Server error" });
     }

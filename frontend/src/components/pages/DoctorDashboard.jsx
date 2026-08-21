@@ -15,6 +15,15 @@ function DoctorDashboard() {
         slotDuration: 30
     });
 
+    const [isLicenseUploadOpen, setIsLicenseUploadOpen] = useState(false);
+    const [licenseData, setLicenseData] = useState({
+        registrationNumber: "",
+        medicalCouncil: "National Medical Commission",
+        qualification: "MBBS",
+        fileData: null,
+        fileName: ""
+    });
+
     useEffect(() => {
         fetchDoctorProfile();
         fetchAppointments();
@@ -29,6 +38,29 @@ function DoctorDashboard() {
                 if (data.user.availability) setAvailability(data.user.availability);
             }
         } catch (error) { console.error("Failed to fetch doctor profile", error); }
+    };
+
+    const handleUploadLicense = async (e) => {
+        e.preventDefault();
+        if (!licenseData.fileData || !licenseData.registrationNumber) {
+            alert("Please provide registration number and select license document.");
+            return;
+        }
+
+        try {
+            const res = await authFetch('/api/doctor/upload-license', {
+                method: "POST",
+                body: JSON.stringify(licenseData)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert("License certificate uploaded and analyzed successfully! Submitted for administrator verification.");
+                setIsLicenseUploadOpen(false);
+                fetchDoctorProfile();
+            } else {
+                alert(data.message || "Failed to upload license.");
+            }
+        } catch (e) { alert("Error processing document upload."); }
     };
 
     const fetchAppointments = async () => {
@@ -95,17 +127,103 @@ function DoctorDashboard() {
 
             <main className="max-w-7xl mx-auto px-6 pt-8">
                 {/* Physician Profile Bar */}
-                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm mb-8 flex items-center justify-between">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-full bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 flex items-center justify-center font-bold text-xl">
                             {profile.name.charAt(0) || "D"}
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Dr. {profile.name}</h2>
-                            <p className="text-sm text-cyan-600 font-semibold">{profile.specialization} • {profile.experience} Years Exp.</p>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Dr. {profile.name}</h2>
+                                {profile.isVerified ? (
+                                    <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                                        <CheckCircle size={14} /> Verified Practitioner
+                                    </span>
+                                ) : (
+                                    <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                                        <Clock size={14} /> Verification Pending
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-sm text-cyan-600 font-semibold mt-0.5">{profile.specialization} • {profile.experience} Years Exp.</p>
+                            <p className="text-xs text-slate-400 mt-1">License: {profile.medicalLicense || "Not Uploaded"}</p>
                         </div>
                     </div>
+
+                    <div>
+                        <button
+                            onClick={() => setIsLicenseUploadOpen(true)}
+                            className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-sm hover:opacity-90 flex items-center gap-2"
+                        >
+                            <FileText size={16} /> Upload / Verify License Certificate
+                        </button>
+                    </div>
                 </div>
+
+                {/* MODAL: Upload Doctor Medical License Certificate */}
+                {isLicenseUploadOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl">
+                            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Upload Medical License Document</h3>
+                            <p className="text-xs text-slate-500 mb-4">Supported formats: PDF, JPG, PNG (Max 10MB). OCR & AI analysis will extract document details for admin verification.</p>
+
+                            <form onSubmit={handleUploadLicense} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Registration License Number *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g. MCI-2026-8849"
+                                        value={licenseData.registrationNumber}
+                                        onChange={(e) => setLicenseData({ ...licenseData, registrationNumber: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">State / National Medical Council *</label>
+                                    <select
+                                        value={licenseData.medicalCouncil}
+                                        onChange={(e) => setLicenseData({ ...licenseData, medicalCouncil: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                    >
+                                        <option value="National Medical Commission">National Medical Commission (NMC)</option>
+                                        <option value="Delhi Medical Council">Delhi Medical Council</option>
+                                        <option value="Maharashtra Medical Council">Maharashtra Medical Council</option>
+                                        <option value="Karnataka Medical Council">Karnataka Medical Council</option>
+                                        <option value="Andhra Pradesh Medical Council">Andhra Pradesh Medical Council</option>
+                                        <option value="State Medical Council">Other State Medical Council</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Choose Document File (PDF/Image) *</label>
+                                    <input
+                                        type="file"
+                                        required
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => setLicenseData(prev => ({ ...prev, fileData: reader.result, fileName: file.name }));
+                                                reader.readAsDataURL(file);
+                                            }
+                                        }}
+                                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-cyan-50 file:text-cyan-700"
+                                    />
+                                </div>
+
+                                <p className="text-[11px] text-slate-400 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl">
+                                    ℹ️ NOTE: AI consistency score & official registry status will be reviewed by MediTrack authorized administrators prior to clinical status approval.
+                                </p>
+
+                                <div className="flex gap-3 pt-2">
+                                    <button type="submit" className="flex-1 bg-cyan-500 text-white font-bold py-3 rounded-xl">Submit for Verification</button>
+                                    <button type="button" onClick={() => setIsLicenseUploadOpen(false)} className="px-4 py-3 text-slate-500 font-semibold">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
 
                 {/* Patient Consultation Requests */}
                 {requestedApts.length > 0 && (

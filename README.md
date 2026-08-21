@@ -32,6 +32,7 @@ MediTrack solves critical healthcare management friction points:
 2. **Medical Privacy & Data Sovereignty**: Local-first document vault using browser `IndexedDB` (`localforage`) ensuring sensitive medical scans and lab tests remain on-device without cloud leakage.
 3. **Telemedicine Ecosystem**: Verified physician directory, AES-256 client-side encrypted messaging, and instant WebRTC video rooms (`Jitsi`).
 4. **Real-time Business & Adherence Analytics**: Executive dashboard tracking adherence rates, consultation stats, and network health.
+5. **AI-Assisted Doctor Verification**: MediTrack provides AI-assisted doctor credential verification. The system uses document extraction and consistency analysis together with authoritative registration verification where available. AI is used as an assistive layer, while final doctor approval remains under authorized administrative review.
 
 ---
 

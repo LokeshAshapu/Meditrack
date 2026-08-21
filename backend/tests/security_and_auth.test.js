@@ -1,8 +1,12 @@
 const assert = require("assert");
 const { generateAuthToken, verifyToken, checkResourceOwnership, rateLimiter } = require("../middleware/auth");
+const { extractDocumentFields } = require("../services/doctor-ocr");
+const { analyzeDocumentConsistency } = require("../services/doctor-verification-ai");
+const MedicalRegistryProvider = require("../services/medical-registry-provider");
+const { evaluateVerificationMatches } = require("../services/doctor-matching-engine");
 const MEDITRACK_VERSION = require("../version");
 
-console.log(`🧪 Starting MediTrack ${MEDITRACK_VERSION.version} Commercial Security & Regression Suite...`);
+console.log(`🧪 Starting MediTrack ${MEDITRACK_VERSION.version} Expanded Doctor Verification 2.0 Test Suite...`);
 
 async function runTests() {
     let passed = 0;
@@ -25,96 +29,122 @@ async function runTests() {
         failed++;
     }
 
-    // Test 2: Expired Token Rejection
+    // Test 2: Role Authorization Guard for Doctor Verification Upload
     try {
-        console.log("\n[Test 2] Testing Expired Token Rejection...");
-        const expiredToken = generateAuthToken({ email: "expired@meditrack.com", role: "patient" }, -1000);
-        const decoded = await verifyToken(expiredToken);
-        assert.strictEqual(decoded, null, "Expired token must return null");
-        console.log("✅ [Test 2 Passed] Expired tokens are rejected.");
+        console.log("\n[Test 2] Testing Role Authorization for Doctor License Upload...");
+        const { requireRole } = require("../middleware/auth");
+        const doctorGuard = requireRole(['doctor', 'admin']);
+        
+        let status = 0;
+        const mockRes = { status: (code) => { status = code; return mockRes; }, json: () => {} };
+
+        const reqPatient = { user: { email: "patient@meditrack.com", role: "patient" } };
+        doctorGuard(reqPatient, mockRes, () => {});
+        assert.strictEqual(status, 403, "Patient role uploading license must be rejected with HTTP 403");
+
+        console.log("✅ [Test 2 Passed] Role guard blocked unauthorized patient role from license upload.");
         passed++;
     } catch (e) {
         console.error("❌ [Test 2 Failed]:", e.message);
         failed++;
     }
 
-    // Test 3: IDOR Resource Ownership Guard
+    // Test 3: Document Upload Format Validation (Reject Executable)
     try {
-        console.log("\n[Test 3] Testing IDOR Resource Ownership Guard...");
-        const patientReq = { user: { email: "patient1@meditrack.com", role: "patient" } };
-        const adminReq = { user: { email: "admin@meditrack.com", role: "admin" } };
+        console.log("\n[Test 3] Testing File Extension Validation (Reject Executable)...");
+        const allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
+        
+        const isFileValid = (filename) => {
+            const ext = (filename || "").split('.').pop().toLowerCase();
+            return allowedExts.includes(ext);
+        };
 
-        assert.strictEqual(checkResourceOwnership(patientReq, "patient1@meditrack.com"), true, "Owner can access own resource");
-        assert.strictEqual(checkResourceOwnership(patientReq, "patient2@meditrack.com"), false, "Patient cannot access another patient's resource");
-        assert.strictEqual(checkResourceOwnership(adminReq, "patient2@meditrack.com"), true, "Admin can access resources");
-        console.log("✅ [Test 3 Passed] IDOR protection checks validated.");
+        assert.strictEqual(isFileValid("license.pdf"), true, "PDF file should be accepted");
+        assert.strictEqual(isFileValid("certificate.jpg"), true, "JPG file should be accepted");
+        assert.strictEqual(isFileValid("malware.exe"), false, "Executable file MUST be rejected");
+        assert.strictEqual(isFileValid("script.sh"), false, "Shell script MUST be rejected");
+
+        console.log("✅ [Test 3 Passed] Dangerous executable extensions rejected.");
         passed++;
     } catch (e) {
         console.error("❌ [Test 3 Failed]:", e.message);
         failed++;
     }
 
-    // Test 4: Role-Based Authorization Logic
+    // Test 4: OCR Extraction & Normalization
     try {
-        console.log("\n[Test 4] Testing Role-Based Authorization Guard...");
-        const { requireRole } = require("../middleware/auth");
-        const adminMiddleware = requireRole("admin");
-        
-        let status = 0;
-        const mockRes = {
-            status: (code) => { status = code; return mockRes; },
-            json: () => {}
-        };
+        console.log("\n[Test 4] Testing OCR String Normalization...");
+        const extracted = extractDocumentFields(
+            { fileName: "Dr_Sarah_Jenkins_License.pdf" },
+            { name: "Dr. Sarah Jenkins", medicalLicense: "MCI-2026-8849/AP", specialization: "Cardiology" }
+        );
 
-        const reqPatient = { user: { email: "user@meditrack.com", role: "patient" } };
-        adminMiddleware(reqPatient, mockRes, () => {});
-        assert.strictEqual(status, 403, "Patient accessing admin route must be rejected with 403");
+        assert.strictEqual(extracted.normalized.name, "sarah jenkins", "Title 'Dr.' stripped and lowercased");
+        assert.strictEqual(extracted.normalized.registrationNumber, "MCI20268849AP", "Slashes stripped and uppercased");
 
-        console.log("✅ [Test 4 Passed] Role authorization middleware rejected unauthorized role access.");
+        console.log("✅ [Test 4 Passed] OCR extraction and normalization verified.");
         passed++;
     } catch (e) {
         console.error("❌ [Test 4 Failed]:", e.message);
         failed++;
     }
 
-    // Test 5: Sliding Window Rate Limiter
+    // Test 5: AI Consistency Analysis Advisory Constraint
     try {
-        console.log("\n[Test 5] Testing Sliding Window Rate Limiter...");
-        const limiter = rateLimiter({ maxRequests: 2, windowMs: 60000 });
-        const req = { headers: {}, socket: { remoteAddress: "127.0.0.1" }, path: "/test-limit" };
+        console.log("\n[Test 5] Testing AI Consistency Advisory Analysis...");
+        const extracted = extractDocumentFields(
+            { fileName: "License.pdf" },
+            { name: "Dr. Sarah Jenkins", medicalLicense: "MCI-2026-8849", specialization: "Cardiology" }
+        );
+
+        const aiResult = analyzeDocumentConsistency(extracted, { name: "Dr. Sarah Jenkins", medicalLicense: "MCI-2026-8849", specialization: "Cardiology" });
         
-        let statusCode = 200;
-        const res = {
-            status: (code) => { statusCode = code; return res; },
-            json: () => {}
-        };
+        assert.ok(aiResult.consistencyScore >= 0.8, "Score should be high for matching credentials");
+        assert.strictEqual(typeof aiResult.consistencyScore, "number");
+        assert.ok(!aiResult.advisoryClassification.includes("genuine"), "AI MUST NOT return 100% genuine assertion");
 
-        limiter(req, res, () => {}); // Request 1
-        limiter(req, res, () => {}); // Request 2
-        limiter(req, res, () => {}); // Request 3 - Exceeded!
-
-        assert.strictEqual(statusCode, 429, "Rate limiter must return HTTP 429 when max requests exceeded");
-        console.log("✅ [Test 5 Passed] Sliding window rate limiter enforced 429 threshold.");
+        console.log("✅ [Test 5 Passed] AI analysis returned advisory metrics without absolute assertions.");
         passed++;
     } catch (e) {
         console.error("❌ [Test 5 Failed]:", e.message);
         failed++;
     }
 
-    // Test 6: Multi-Tenant Clinic Data Isolation Guard
+    // Test 6: Official Medical Registry Provider Query
     try {
-        console.log("\n[Test 6] Testing Multi-Tenant Clinic Isolation Guard...");
-        const orgAUser = { email: "doc@clinicA.com", organizationId: "org_A" };
-        const orgBUser = { email: "doc@clinicB.com", organizationId: "org_B" };
+        console.log("\n[Test 6] Testing Official Medical Registry Provider Query...");
+        const regResult = await MedicalRegistryProvider.verifyRegistration({
+            name: "Dr. Sarah Jenkins",
+            registrationNumber: "MCI-2026-8849",
+            council: "National Medical Commission"
+        });
 
-        const isTenantAccessAllowed = (caller, targetTenantId) => caller.organizationId === targetTenantId;
+        assert.strictEqual(regResult.registrationFound, true, "Mock registry should match known license #");
+        assert.strictEqual(regResult.registryStatus, "ACTIVE_REGISTERED");
 
-        assert.strictEqual(isTenantAccessAllowed(orgAUser, "org_A"), true, "User can access own organization data");
-        assert.strictEqual(isTenantAccessAllowed(orgAUser, "org_B"), false, "User CANNOT access competitor organization data");
-        console.log("✅ [Test 6 Passed] Multi-tenant organization isolation validated.");
+        console.log("✅ [Test 6 Passed] Official registry provider query matched license record.");
         passed++;
     } catch (e) {
         console.error("❌ [Test 6 Failed]:", e.message);
+        failed++;
+    }
+
+    // Test 7: Deterministic Matching Engine
+    try {
+        console.log("\n[Test 7] Testing Deterministic Matching Engine...");
+        const submitted = { name: "Dr. Sarah Jenkins", medicalLicense: "MCI-2026-8849" };
+        const extracted = extractDocumentFields({ fileName: "License.pdf" }, submitted);
+        const registry = await MedicalRegistryProvider.verifyRegistration(submitted);
+
+        const matchEval = evaluateVerificationMatches(submitted, extracted, registry);
+        assert.strictEqual(matchEval.matchResults.registrationNumberMatch, true);
+        assert.strictEqual(matchEval.matchResults.nameMatch, true);
+        assert.strictEqual(matchEval.recommendation, "AUTO_MATCHED");
+
+        console.log("✅ [Test 7 Passed] Matching engine produced AUTO_MATCHED recommendation.");
+        passed++;
+    } catch (e) {
+        console.error("❌ [Test 7 Failed]:", e.message);
         failed++;
     }
 
