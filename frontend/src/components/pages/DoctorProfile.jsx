@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, Calendar, Clock, Award, Star, Edit, Save, MapPin, Building } from 'lucide-react';
+import { authFetch } from '../../utils/api';
 
 function DoctorProfile() {
     const [profile, setProfile] = useState(null);
@@ -7,7 +8,6 @@ function DoctorProfile() {
     const [isEditing, setIsEditing] = useState(false);
     const [streak, setStreak] = useState(0);
 
-    // Form state for editing
     const [formData, setFormData] = useState({});
 
     useEffect(() => {
@@ -16,11 +16,8 @@ function DoctorProfile() {
     }, []);
 
     const fetchProfile = async () => {
-        const email = localStorage.getItem("userEmail");
-        if (!email) return;
-
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-user-profile?email=${email}`);
+            const res = await authFetch('/get-user-profile');
             const data = await res.json();
             if (res.ok) {
                 setProfile(data.user);
@@ -34,10 +31,8 @@ function DoctorProfile() {
     };
 
     const fetchStreak = async () => {
-        const email = localStorage.getItem("userEmail");
-        if (!email) return;
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-streak?email=${email}`);
+            const res = await authFetch('/get-streak');
             const data = await res.json();
             if (res.ok) setStreak(data.streak);
         } catch (error) {
@@ -46,27 +41,22 @@ function DoctorProfile() {
     };
 
     const handleSave = async () => {
-        const email = localStorage.getItem("userEmail");
-        if (!email) return;
-
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/update-profile`, {
+            const res = await authFetch('/update-profile', {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...formData, email })
+                body: JSON.stringify(formData)
             });
             const data = await res.json();
             if (res.ok) {
-                setProfile(data.user); // Sync with backend response
-                setFormData(data.user); // Ensure form is also synced (optional but good)
+                setProfile(data.user);
+                setFormData(data.user);
                 setIsEditing(false);
                 alert("Profile updated successfully!");
             } else {
-                console.error("Failed to update profile", data.message);
                 alert(`Failed to save: ${data.message || "Unknown error"}`);
             }
         } catch (error) {
-            console.error("Error updating profile:", error);
+            console.error("Error saving profile:", error);
         }
     };
 

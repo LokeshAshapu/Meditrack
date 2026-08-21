@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Sun, Moon } from 'lucide-react';
+import { Menu, X, Sun, Moon, Bell } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { authFetch } from '../utils/api';
 
 function NavBar() {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userRole, setUserRole] = useState("patient");
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [toastMsg, setToastMsg] = useState(null);
     const location = useLocation();
     const { theme, setTheme } = useTheme();
 
@@ -23,7 +26,6 @@ function NavBar() {
         window.scrollTo(0, 0);
         const checkAuth = () => {
             const email = localStorage.getItem("userEmail");
-            // Ensure it's not the string "undefined" or "null" which can sometimes happen
             const isValid = email && email !== "undefined" && email !== "null";
             setIsLoggedIn(!!isValid);
 
@@ -32,11 +34,51 @@ function NavBar() {
         };
 
         checkAuth();
-
-        // Listen for storage events to sync across tabs
         window.addEventListener('storage', checkAuth);
         return () => window.removeEventListener('storage', checkAuth);
     }, [location]);
+
+    useEffect(() => {
+        if (!isLoggedIn) return;
+        const email = localStorage.getItem("userEmail");
+        if (!email) return;
+
+        let lastMessageTimes = {};
+
+        const fetchChatsForNotifs = async () => {
+            try {
+                const res = await authFetch('/get-chats');
+                if (res.ok) {
+                    const data = await res.json();
+                    let newUnread = 0;
+                    data.chats.forEach(chat => {
+                        if (chat.lastMessage && chat.lastMessage.sender !== email) {
+                            const lastTime = chat.lastMessage.timestamp;
+                            const storedLastParams = lastMessageTimes[chat.id];
+                            
+                            if (storedLastParams && storedLastParams !== lastTime) {
+                                // New message arrived!
+                                setToastMsg(`New message from ${chat.otherName || 'a contact'}`);
+                                setTimeout(() => setToastMsg(null), 5000);
+                            }
+                            
+                            // Simple unread badge logic based on active path
+                            if (location.pathname !== '/messages') {
+                                newUnread++;
+                            }
+                            lastMessageTimes[chat.id] = lastTime;
+                        }
+                    });
+                    setUnreadCount(newUnread);
+                }
+            } catch(e) {}
+        };
+
+        fetchChatsForNotifs();
+        const interval = setInterval(fetchChatsForNotifs, 10000);
+        
+        return () => clearInterval(interval);
+    }, [isLoggedIn, location.pathname]);
 
     const handleLogout = () => {
         localStorage.removeItem("userEmail");
@@ -96,6 +138,14 @@ function NavBar() {
 
                     {/* Right Side Actions */}
                     <div className="hidden md:flex items-center gap-3">
+                        {isLoggedIn && (
+                            <Link to="/messages" className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 mr-2">
+                                <Bell size={20} />
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+                                )}
+                            </Link>
+                        )}
                         <button
                             onClick={toggleTheme}
                             className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
@@ -142,7 +192,9 @@ function NavBar() {
                         {userRole === 'doctor' ? (
                             <>
                                 <MobileLink to="/doctor-dashboard" onClick={toggleMenu}>Dashboard</MobileLink>
-                                <MobileLink to="/messages" onClick={toggleMenu}>Messages</MobileLink>
+                                <MobileLink to="/messages" onClick={toggleMenu}>
+                                    Messages {unreadCount > 0 && <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-xs">{unreadCount}</span>}
+                                </MobileLink>
                                 <MobileLink to="/doctor-profile" onClick={toggleMenu}>Profile</MobileLink>
                             </>
                         ) : (
@@ -152,7 +204,9 @@ function NavBar() {
                                 <MobileLink to="/medical" onClick={toggleMenu}>Medical Specialities</MobileLink>
                                 <MobileLink to="/tracker" onClick={toggleMenu}>Tracker</MobileLink>
                                 <MobileLink to="/Dashboard" onClick={toggleMenu}>Dashboard</MobileLink>
-                                <MobileLink to="/messages" onClick={toggleMenu}>Messages</MobileLink>
+                                <MobileLink to="/messages" onClick={toggleMenu}>
+                                    Messages {unreadCount > 0 && <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-xs">{unreadCount}</span>}
+                                </MobileLink>
                                 <MobileLink to="/contact" onClick={toggleMenu}>Contact</MobileLink>
                             </>
                         )}
@@ -168,6 +222,19 @@ function NavBar() {
                                 </Link>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Global Toast Notification */}
+            {toastMsg && (
+                <div className="fixed bottom-6 right-6 z-[100] animate-in slide-in-from-right fade-in duration-300">
+                    <div className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-xl shadow-2xl shadow-cyan-500/20 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-cyan-500/20 dark:bg-cyan-500/20 flex items-center justify-center">
+                            <Bell size={16} className="text-cyan-400 dark:text-cyan-600" />
+                        </div>
+                        <span className="font-medium">{toastMsg}</span>
+                        <button onClick={() => setToastMsg(null)} className="ml-4 opacity-50 hover:opacity-100"><X size={16}/></button>
                     </div>
                 </div>
             )}

@@ -1,966 +1,1007 @@
-
 import React, { useState, useEffect, useRef } from "react";
-import { User, LogOut, Check, Trash2, Calendar, Clock, Plus, Layout, Edit2, BarChart2, Repeat, Sparkles, X, Camera, FileText, Video, Mail, Phone, TrendingUp, Upload, FilePlus } from "lucide-react";
+import { 
+    User, LogOut, Check, Trash2, Calendar, Clock, Plus, Layout, Edit2, BarChart2, 
+    Repeat, Sparkles, X, Camera, FileText, Video, Mail, Phone, TrendingUp, Upload, 
+    FilePlus, AlertTriangle, ShieldAlert, Heart, Activity, HardDrive, MessageSquare, 
+    Search, Filter, Pause, Play, CheckCircle2, XCircle, RefreshCw, Star, Info
+} from "lucide-react";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
-
+import autoTable from "jspdf-autotable";
+import localforage from "localforage";
+import { authFetch } from "../../utils/api";
 import SpinnerLoading from "../spinnerLoading";
 
 function Dashboard() {
+    const [activeTab, setActiveTab] = useState("today"); // 'today' | 'upcoming' | 'health' | 'vault' | 'timeline'
     const [message, setMessage] = useState("");
     const [cards, setCards] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // User Profile State
-    const [userProfile, setUserProfile] = useState({
-        name: "",
-        email: "",
-        phoneNumber: "",
-        profilePic: ""
-    });
+    // Profile & Emergency Contacts
+    const [userProfile, setUserProfile] = useState({ name: "", email: "", phoneNumber: "", profilePic: "", emergencyContacts: [] });
     const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
     const [editProfileData, setEditProfileData] = useState({ name: "", phoneNumber: "", profilePic: "" });
-    const [fileInputRef] = useState(React.createRef()); // Ref for file input
+    const [isSosModalOpen, setIsSosModalOpen] = useState(false);
+    const [sosNote, setSosNote] = useState("");
+    const [isSosBroadcasting, setIsSosBroadcasting] = useState(false);
+    const [isEmergencyConfigOpen, setIsEmergencyConfigOpen] = useState(false);
+    const [emergencyContacts, setEmergencyContacts] = useState([{ name: "", relationship: "", phoneNumber: "" }]);
 
-    // AI Interaction State
-    const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
-    const [interactionResult, setInteractionResult] = useState("");
-    const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
-
-
-    // Tracker Edit State
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingCard, setEditingCard] = useState(null);
-    const [editMedicine, setEditMedicine] = useState("");
-    const [editTime, setEditTime] = useState("");
-    const [editFrequency, setEditFrequency] = useState("Daily");
-    const [editSelectedDays, setEditSelectedDays] = useState([]);
-
-    const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    // Tracker & Medication 2.0 State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [newMed, setNewMed] = useState({
+        medicine: "", genericName: "", dosage: "1", dosageUnit: "tablet", frequency: "Daily",
+        route: "Oral", time: "08:00", foodRelation: "after_food", instructions: "Take with water"
+    });
 
     const [logs, setLogs] = useState([]);
-    const [progress, setProgress] = useState(0);
     const [streak, setStreak] = useState(0);
+    const [adherenceIntel, setAdherenceIntel] = useState(null);
+    const [timeline, setTimeline] = useState([]);
+    const [appointments, setAppointments] = useState([]);
 
-    // Medical Records State
+    // Medical Vault 2.0 State (IndexedDB)
     const [medicalRecords, setMedicalRecords] = useState([]);
+    const [recordSearch, setRecordSearch] = useState("");
+    const [recordFilter, setRecordFilter] = useState("all"); // 'all' | 'Prescription' | 'Lab Report' | 'Scan'
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [uploadData, setUploadData] = useState({ title: "", description: "", file: null });
-    const [isUploading, setIsUploading] = useState(false);
+    const [uploadData, setUploadData] = useState({ title: "", category: "Prescription", description: "", file: null, fileName: "" });
+    const [storageUsage, setStorageUsage] = useState({ usedMB: 0, remainingMB: 50 });
+
+    // Pilot Feedback State
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+    const [feedbackData, setFeedbackData] = useState({ rating: 5, category: "experience", comment: "" });
 
     useEffect(() => {
-        // Load user from local storage
         const email = localStorage.getItem("userEmail");
         const name = localStorage.getItem("userName");
         const phone = localStorage.getItem("userPhone");
 
         if (email) {
             setUserProfile({
-                name: name || "User",
+                name: name || "Patient",
                 email: email,
                 phoneNumber: phone || "Not set",
-                profilePic: localStorage.getItem("userProfilePic") || ""
+                profilePic: localStorage.getItem("userProfilePic") || "",
+                emergencyContacts: []
             });
-            loadData(email);
+            loadData();
         } else {
-            setMessage("Please log in to see your trackers.");
+            setMessage("Please log in to access your patient dashboard.");
         }
     }, []);
 
-    const loadData = async (email) => {
+    const loadData = async () => {
         setIsLoading(true);
         try {
-            await Promise.all([fetchCards(email), fetchLogs(email), fetchStreak(email), fetchAppointments(email), fetchMedicalRecords(email)]);
+            await Promise.all([
+                fetchCards(), fetchLogs(), fetchStreak(), fetchAdherence(), 
+                fetchAppointments(), fetchMedicalRecords(), fetchTimeline(), fetchProfile()
+            ]);
         } catch (error) {
-            console.error("Error loading data:", error);
+            console.error("Error loading patient data:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const fetchCards = async (email) => {
+    const fetchProfile = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-tracker?email=${email}`);
+            const res = await authFetch('/get-user-profile');
             const data = await res.json();
-            if (res.ok) {
-                setCards(data.data);
-            } else {
-                setCards([]);
+            if (res.ok && data.user) {
+                setUserProfile(prev => ({ ...prev, ...data.user }));
+                if (data.user.emergencyContacts) setEmergencyContacts(data.user.emergencyContacts);
             }
-        } catch (error) {
-            console.error("Error fetching cards:", error);
-            setMessage("Failed to fetch trackers.");
-        }
+        } catch (e) { console.error(e); }
     };
 
-    const fetchLogs = async (email) => {
+    const fetchCards = async () => {
+        try {
+            const res = await authFetch('/get-tracker');
+            const data = await res.json();
+            if (res.ok) setCards(data.data || []);
+        } catch (error) { console.error("Error fetching cards:", error); }
+    };
+
+    const fetchLogs = async () => {
         const today = new Date().toISOString().split('T')[0];
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-logs?email=${email}&date=${today}`);
+            const res = await authFetch(`/get-logs?date=${today}`);
             const data = await res.json();
-            if (res.ok) {
-                setLogs(data.data);
-            }
-        } catch (error) {
-            console.error("Error fetching logs:", error);
-        }
+            if (res.ok) setLogs(data.data || []);
+        } catch (error) { console.error("Error fetching logs:", error); }
     };
 
-    const fetchStreak = async (email) => {
+    const fetchStreak = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-streak?email=${email}`);
+            const res = await authFetch('/get-streak');
             const data = await res.json();
-            if (res.ok) {
-                setStreak(data.streak);
-            }
-        } catch (error) {
-            console.error("Error fetching streak:", error);
-        }
+            if (res.ok) setStreak(data.streak || 0);
+        } catch (error) { console.error("Error fetching streak:", error); }
     };
 
-    const [appointments, setAppointments] = useState([]);
-
-    const fetchAppointments = async (email) => {
+    const fetchAdherence = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-patient-appointments?email=${email}`);
+            const res = await authFetch('/get-adherence-intelligence');
             const data = await res.json();
-            if (res.ok) {
-                setAppointments(data.appointments);
-            }
-        } catch (error) {
-            console.error("Error fetching appointments:", error);
-        }
+            if (res.ok) setAdherenceIntel(data);
+        } catch (error) { console.error("Error fetching adherence:", error); }
     };
 
-    const fetchMedicalRecords = async (email) => {
+    const fetchAppointments = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-medical-records?email=${email}`);
+            const res = await authFetch('/get-patient-appointments');
             const data = await res.json();
-            if (res.ok) {
-                setMedicalRecords(data.records);
-            }
-        } catch (error) {
-            console.error("Error fetching medical records:", error);
-        }
+            if (res.ok) setAppointments(data.appointments || []);
+        } catch (error) { console.error("Error fetching appointments:", error); }
     };
 
-    // Calculate progress whenever cards or logs change
-    useEffect(() => {
-        if (cards.length > 0) {
-            const takenCount = logs.length;
-            const totalCount = cards.length;
-            // Cap at 100% just in case of duplicate logs
-            const percentage = Math.min(Math.round((takenCount / totalCount) * 100), 100);
-            setProgress(percentage);
-        } else {
-            setProgress(0);
-        }
-    }, [cards, logs]);
-
-    const handleMarkTaken = async (card) => {
-        const { medicine, startDate, endDate, id } = card;
-
-        // Fix: Use local date to match what user selects in the form
-        const d = new Date();
-        const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-        console.log("Checking deletion:", { medicine, startDate, endDate, today, id });
-
-        // Optimistic UI update check
-        if (logs.some(log => log.medicine === medicine)) return;
-
+    const fetchTimeline = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/log-medication`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    email: userProfile.email,
-                    medicine: medicine,
-                    date: today,
-                    status: 'taken'
-                }),
-            });
-
-            if (res.ok) {
-                // Update local state
-                setLogs(prev => [...prev, { medicine: medicine, date: today, status: 'taken' }]);
-
-                // 🗑️ INSTANT DELETION CHECK
-                // If the tracker is ONLY for today (Start=Today AND End=Today)
-                if (startDate === today && endDate === today) {
-                    console.log("Deleting tracker instantly...");
-                    await handleDelete(id, true); // Pass 'true' to suppress confirmation
-                } else {
-                    setMessage(`Marked ${medicine} as taken!`);
-                    setTimeout(() => setMessage(""), 3000);
-                }
-
-                // Refresh streak
-                fetchStreak(userProfile.email);
-            }
-        } catch (error) {
-            console.error("Error logging medication:", error);
-            setMessage("Failed to log medication.");
-        }
-    };
-
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            if (file.size > 100000) { // Limit to ~100KB to preserve DB space
-                alert("Image too large. Please choose an image under 100KB.");
-                return;
-            }
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setEditProfileData(prev => ({ ...prev, profilePic: reader.result }));
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    // --- AI & Report Functions ---
-    const handleAnalyzeInteractions = async () => {
-        if (cards.length < 2) {
-            alert("Add at least two medicines to check for interactions.");
-            return;
-        }
-
-        setIsAnalysisLoading(true);
-        const medicines = cards.map(c => c.medicine).join(", ");
-        const prompt = `Analyze specific drug interactions between these medicines: ${medicines}. Warning: Focus ONLY on significant interactions. Be concise.`;
-
-        try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/chat`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: prompt }),
-            });
+            const res = await authFetch('/get-health-timeline');
             const data = await res.json();
-            setInteractionResult(data.reply);
-            setIsInteractionModalOpen(true);
-        } catch (error) {
-            console.error("Error analyzing:", error);
-            alert("Failed to analyze interactions.");
-        } finally {
-            setIsAnalysisLoading(false);
-        }
+            if (res.ok) setTimeline(data.timeline || []);
+        } catch (error) { console.error("Error fetching timeline:", error); }
     };
 
-    const handleDownloadReport = () => {
-        const doc = new jsPDF();
+    // --- Medical Vault 2.0 (IndexedDB localforage) ---
+    const fetchMedicalRecords = async () => {
+        const email = localStorage.getItem("userEmail");
+        if (!email) return;
+        try {
+            const records = await localforage.getItem(`medicalRecords_${email}`) || [];
+            setMedicalRecords(records);
 
-        // Header
-        doc.setFillColor(6, 182, 212); // Cyan color
-        doc.rect(0, 0, 210, 20, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
-        doc.text("MediTrack Health Report", 105, 13, null, null, "center");
-
-        // User Info
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(12);
-        doc.text(`Name: ${userProfile.name}`, 14, 30);
-        doc.text(`Email: ${userProfile.email}`, 14, 36);
-        doc.text(`Report Date: ${new Date().toLocaleDateString()}`, 14, 42);
-
-        // Trackers Table
-        doc.setFontSize(14);
-        doc.setTextColor(6, 182, 212);
-        doc.text("Current Medications", 14, 55);
-
-        const trackerRows = cards.map(c => [c.medicine, c.time, c.frequency]);
-        doc.autoTable({
-            startY: 60,
-            head: [['Medicine', 'Time', 'Frequency']],
-            body: trackerRows,
-            theme: 'grid',
-            headStyles: { fillColor: [6, 182, 212] },
-            margin: { left: 14, right: 14 }
-        });
-
-        // Logs Table
-        const finalY = doc.lastAutoTable.finalY + 15;
-        doc.text("Recent Activity", 14, finalY);
-
-        const logRows = logs.slice(0, 15).map(l => [l.medicine, l.date, 'Taken']); // Show last 15 logs
-        doc.autoTable({
-            startY: finalY + 5,
-            head: [['Medicine', 'Date', 'Status']],
-            body: logRows,
-            theme: 'striped',
-            headStyles: { fillColor: [75, 85, 99] },
-            margin: { left: 14, right: 14 }
-        });
-
-        doc.save("meditrack-report.pdf");
-    };
-
-    // --- Medical Records Functions ---
-    const handleFileUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            if (file.size > 2000000) { // 2MB limit
-                alert("File too large. Please choose a file under 2MB.");
-                return;
-            }
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setUploadData(prev => ({ ...prev, file: reader.result, fileName: file.name }));
-            };
-            reader.readAsDataURL(file);
-        }
+            // Calculate Storage Quota
+            const jsonString = JSON.stringify(records);
+            const sizeInBytes = new Blob([jsonString]).size;
+            const usedMB = (sizeInBytes / (1024 * 1024)).toFixed(2);
+            setStorageUsage({ usedMB: Number(usedMB), remainingMB: Math.max(0, 50 - Number(usedMB)).toFixed(2) });
+        } catch (err) { console.error("Could not fetch local records", err); }
     };
 
     const handleUploadRecord = async (e) => {
         e.preventDefault();
         if (!uploadData.title || !uploadData.file) {
-            alert("Please provide a title and upload a file.");
+            alert("Please provide a document title and file.");
             return;
         }
 
-        setIsUploading(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/upload-medical-record`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    patientEmail: userProfile.email,
-                    title: uploadData.title,
-                    description: uploadData.description,
-                    fileData: uploadData.file,
-                    fileName: uploadData.fileName
-                })
-            });
+            const email = localStorage.getItem("userEmail");
+            const newRecord = {
+                id: `doc_${Date.now()}`,
+                title: uploadData.title,
+                category: uploadData.category,
+                description: uploadData.description,
+                fileData: uploadData.file,
+                fileName: uploadData.fileName,
+                uploadedAt: new Date().toISOString()
+            };
 
-            if (res.ok) {
-                setMessage("Medical record uploaded successfully!");
-                setTimeout(() => setMessage(""), 3000);
-                setIsUploadModalOpen(false);
-                setUploadData({ title: "", description: "", file: null });
-                fetchMedicalRecords(userProfile.email); // Refresh list
-            } else {
-                alert("Failed to upload record.");
-            }
+            const existingRecords = await localforage.getItem(`medicalRecords_${email}`) || [];
+            const updatedRecords = [newRecord, ...existingRecords];
+            await localforage.setItem(`medicalRecords_${email}`, updatedRecords);
+
+            setIsUploadModalOpen(false);
+            setUploadData({ title: "", category: "Prescription", description: "", file: null, fileName: "" });
+            fetchMedicalRecords();
+            setMessage("Document safely stored in your local browser vault!");
+            setTimeout(() => setMessage(""), 3000);
         } catch (error) {
-            console.error("Error uploading record:", error);
-            alert("Error uploading record.");
-        } finally {
-            setIsUploading(false);
+            alert("Error storing document locally.");
         }
     };
 
     const handleDeleteRecord = async (recordId) => {
-        if (!window.confirm("Are you sure you want to delete this record?")) return;
-
+        if (!window.confirm("Are you sure you want to delete this medical record from local storage?")) return;
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/delete-medical-record/${recordId}`, {
-                method: "DELETE"
+            const email = localStorage.getItem("userEmail");
+            const existingRecords = await localforage.getItem(`medicalRecords_${email}`) || [];
+            const updatedRecords = existingRecords.filter(r => r.id !== recordId);
+            await localforage.setItem(`medicalRecords_${email}`, updatedRecords);
+            fetchMedicalRecords();
+        } catch (error) { console.error(error); }
+    };
+
+    // Dose Logging
+    const handleLogDose = async (medicine, status, time) => {
+        const today = new Date().toISOString().split('T')[0];
+        try {
+            const res = await authFetch('/log-medication', {
+                method: "POST",
+                body: JSON.stringify({ medicine, date: today, status, time })
             });
-
             if (res.ok) {
-                setMessage("Record deleted successfully!");
-                setTimeout(() => setMessage(""), 3000);
-                fetchMedicalRecords(userProfile.email);
-            } else {
-                alert("Failed to delete record.");
+                fetchLogs();
+                fetchAdherence();
+                fetchTimeline();
             }
-        } catch (error) {
-            console.error("Error deleting record:", error);
-            alert("Error deleting record.");
-        }
+        } catch (error) { console.error("Error logging dose:", error); }
     };
 
-    // --- Profile Functions ---
-    const handleProfileEditClick = () => {
-        setEditProfileData({
-            name: userProfile.name,
-            phoneNumber: userProfile.phoneNumber === "Not set" ? "" : userProfile.phoneNumber,
-            profilePic: userProfile.profilePic
-        });
-        setIsProfileEditOpen(true);
-    };
-
-    const handleProfileUpdate = async (e) => {
+    // Medication 2.0 Add
+    const handleAddMedication = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/update-profile`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    email: userProfile.email,
-                    name: editProfileData.name,
-                    phoneNumber: editProfileData.phoneNumber,
-                    profilePic: editProfileData.profilePic
-                }),
+            const res = await authFetch('/add-tracker', {
+                method: "POST",
+                body: JSON.stringify(newMed)
+            });
+            if (res.ok) {
+                setIsAddModalOpen(false);
+                setNewMed({ medicine: "", genericName: "", dosage: "1", dosageUnit: "tablet", frequency: "Daily", route: "Oral", time: "08:00", foodRelation: "after_food", instructions: "Take with water" });
+                fetchCards();
+                setMessage("Medication schedule created cleanly!");
+                setTimeout(() => setMessage(""), 3000);
+            }
+        } catch (e) { alert("Error adding medication."); }
+    };
+
+    const handlePauseMedication = async (id) => {
+        try {
+            const res = await authFetch(`/pause-tracker/${id}`, { method: "PATCH" });
+            if (res.ok) fetchCards();
+        } catch (e) { console.error(e); }
+    };
+
+    const handleResumeMedication = async (id) => {
+        try {
+            const res = await authFetch(`/resume-tracker/${id}`, { method: "PATCH" });
+            if (res.ok) fetchCards();
+        } catch (e) { console.error(e); }
+    };
+
+    // Emergency SOS Trigger
+    const handleTriggerSos = async () => {
+        setIsSosBroadcasting(true);
+        try {
+            const res = await authFetch('/trigger-sos', {
+                method: "POST",
+                body: JSON.stringify({ note: sosNote })
             });
             const data = await res.json();
             if (res.ok) {
-                // Update local state and storage
-                setUserProfile(prev => ({
-                    ...prev,
-                    name: data.user.name,
-                    phoneNumber: data.user.phoneNumber,
-                    profilePic: data.user.profilePic
-                }));
-                localStorage.setItem("userName", data.user.name);
-                localStorage.setItem("userPhone", data.user.phoneNumber);
-                localStorage.setItem("userProfilePic", data.user.profilePic || "");
-
-                setIsProfileEditOpen(false);
-                setMessage("Profile updated successfully!");
-                setTimeout(() => setMessage(""), 3000);
+                alert(`🚨 SOS Broadcast Dispatched!\nNotified ${data.notifiedCount} Emergency Contacts via SMS/Voice call.`);
+                setIsSosModalOpen(false);
+                setSosNote("");
+                fetchTimeline();
             } else {
-                alert(data.message || "Failed to update profile");
+                alert(data.message || "Failed to trigger SOS broadcast.");
             }
-        } catch (error) {
-            console.error("Error updating profile:", error);
-            alert("Error updating profile");
+        } catch (e) {
+            alert("Error sending SOS alert.");
+        } finally {
+            setIsSosBroadcasting(false);
         }
     };
 
-
-    // --- Tracker Functions ---
-    const handleDelete = async (id, skipConfirm = false) => {
-        if (!skipConfirm && !window.confirm("Are you sure you want to delete this tracker?")) return;
-        try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/delete-tracker/${id}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                setMessage(data.message || "Something went wrong");
-                return;
-            }
-            setCards(currentCards => currentCards.filter(card => card.id !== id));
-            setMessage("Tracker deleted successfully!");
-            setTimeout(() => setMessage(""), 3000);
-        } catch (error) {
-            setMessage("Failed to delete tracker");
-        }
-    };
-
-    const openEditModal = (card) => {
-        setEditingCard(card);
-        setEditMedicine(card.medicine);
-        setEditTime(card.time);
-        setEditFrequency(card.frequency || "Daily");
-        setEditSelectedDays(card.selectedDays || []);
-        setIsEditModalOpen(true);
-    };
-
-    const handleEditDayChange = (day) => {
-        if (editSelectedDays.includes(day)) {
-            setEditSelectedDays(editSelectedDays.filter(d => d !== day));
-        } else {
-            setEditSelectedDays([...editSelectedDays, day]);
-        }
-    };
-
-    const handleUpdate = async (e) => {
+    const handleSaveEmergencyContacts = async (e) => {
         e.preventDefault();
-        if (editFrequency === "Specific Days" && editSelectedDays.length === 0) {
-            alert("Please select at least one day.");
-            return;
-        }
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/update-tracker/${editingCard.id}`, {
+            const res = await authFetch('/update-emergency-contacts', {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    medicine: editMedicine,
-                    time: editTime,
-                    frequency: editFrequency,
-                    selectedDays: editSelectedDays
-                }),
+                body: JSON.stringify({ emergencyContacts })
             });
-            const data = await res.json();
-            if (!res.ok) {
-                alert(data.message || "Update failed");
-                return;
+            if (res.ok) {
+                alert("Emergency contacts updated successfully!");
+                setIsEmergencyConfigOpen(false);
             }
-            setCards(cards.map(card =>
-                card.id === editingCard.id
-                    ? { ...card, medicine: editMedicine, time: editTime, frequency: editFrequency, selectedDays: editSelectedDays }
-                    : card
-            ));
-            setIsEditModalOpen(false);
-            setMessage("Tracker updated successfully!");
-            setTimeout(() => setMessage(""), 3000);
-        } catch (error) {
-            alert("Failed to update tracker");
-        }
+        } catch (e) { alert("Failed to save emergency contacts."); }
     };
 
-    if (isLoading) {
-        return <DashboardSkeleton />;
-    }
+    // Pilot Feedback Submit
+    const handleSubmitFeedback = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await authFetch('/api/feedback', {
+                method: "POST",
+                body: JSON.stringify(feedbackData)
+            });
+            if (res.ok) {
+                alert("Thank you! Your feedback has been sent to the MediTrack engineering team.");
+                setIsFeedbackOpen(false);
+                setFeedbackData({ rating: 5, category: "experience", comment: "" });
+            }
+        } catch (e) { alert("Failed to submit feedback."); }
+    };
+
+    if (isLoading) return <SpinnerLoading />;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const loggedMedsMap = logs.reduce((acc, log) => ({ ...acc, [log.medicine]: log.status }), {});
+    const dueMeds = cards.filter(c => c.status !== 'paused');
+    const completedCount = dueMeds.filter(c => loggedMedsMap[c.medicine] === 'taken').length;
+    const todayAdherence = dueMeds.length > 0 ? Math.round((completedCount / dueMeds.length) * 100) : 100;
 
     return (
-        <div className="min-h-screen p-6 w-full max-w-7xl mx-auto">
-            {/* Same content as before, just ensuring we return the main div */}
-            {/* ALERT MESSAGE */}
-            {message && (
-                <div className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-xl shadow-xl font-semibold backdrop-blur-md border ${message.includes("Failed") || message.includes("Error") ? "bg-red-500/20 text-red-600 border-red-200" : "bg-green-500/20 text-green-600 border-green-200"}`}>
-                    {message}
-                </div>
-            )}
-
-            {/* HEADER */}
-            <h1 className="text-4xl font-extrabold text-center mb-10 bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 to-blue-600">
-                Patient Dashboard
-            </h1>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* PROFILE SECTION */}
-                <div className="lg:col-span-1">
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/20 p-6 rounded-3xl shadow-xl sticky top-24">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Profile</h2>
-                            <button onClick={handleProfileEditClick} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 transition-colors">
-                                <Edit2 size={20} />
-                            </button>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans pb-16">
+            {/* Top Bar Header */}
+            <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40 px-6 py-4">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shadow-md">
+                            {userProfile.name.charAt(0)}
                         </div>
-
-                        <div className="flex flex-col items-center mb-6">
-                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white text-4xl font-bold shadow-lg mb-4 overflow-hidden border-4 border-white dark:border-slate-800">
-                                {userProfile.profilePic ? (
-                                    <img src={userProfile.profilePic} alt="Profile" className="w-full h-full object-cover" />
-                                ) : (
-                                    userProfile.name.charAt(0).toUpperCase()
-                                )}
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">{userProfile.name}</h3>
-                            <p className="text-slate-500 text-sm">Patient</p>
-
-                            <button
-                                onClick={handleDownloadReport}
-                                className="mt-4 flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                <FileText size={16} />
-                                Health Report
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="flex items-center space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                                <Mail className="text-cyan-500" size={20} />
-                                <div>
-                                    <p className="text-xs text-slate-500 uppercase font-semibold">Email</p>
-                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[200px]">{userProfile.email}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center space-x-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-                                <Phone className="text-blue-500" size={20} />
-                                <div>
-                                    <p className="text-xs text-slate-500 uppercase font-semibold">Phone</p>
-                                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{userProfile.phoneNumber}</p>
-                                </div>
-                            </div>
-
-                            {/* 🔥 STREAK DISPLAY */}
-                            <div className="flex items-center space-x-3 p-3 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30">
-                                <TrendingUp className="text-orange-500" size={20} />
-                                <div>
-                                    <p className="text-xs text-orange-600/80 dark:text-orange-400 uppercase font-bold">Current Streak</p>
-                                    <p className="text-lg font-black text-orange-600 dark:text-orange-400">{streak} Days</p>
-                                </div>
-                            </div>
+                        <div>
+                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 to-blue-600">
+                                Welcome back, {userProfile.name}
+                            </h1>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">MediTrack Patient Healthcare Journey</p>
                         </div>
                     </div>
-                </div>
 
-                {/* TRACKERS SECTION */}
-                <div className="lg:col-span-2">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                            <Clock className="text-cyan-500" />
-                            Active Reminders
-                        </h2>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {/* Emergency SOS Button */}
                         <button
-                            onClick={handleAnalyzeInteractions}
-                            disabled={isAnalysisLoading}
-                            className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-xl font-semibold hover:bg-purple-200 transition-colors disabled:opacity-50"
+                            onClick={() => setIsSosModalOpen(true)}
+                            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-red-500/20 flex items-center gap-2 animate-pulse"
                         >
-                            {isAnalysisLoading ? (
-                                <span className="animate-spin">✨</span>
-                            ) : (
-                                <Sparkles size={18} />
-                            )}
-                            Check Interactions
+                            <ShieldAlert size={16} /> SOS Emergency Alert
+                        </button>
+                        <button
+                            onClick={() => setIsFeedbackOpen(true)}
+                            className="bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 text-purple-600 dark:text-purple-300 text-xs font-semibold px-3.5 py-2.5 rounded-xl border border-purple-200 dark:border-purple-800 transition-colors flex items-center gap-1.5"
+                        >
+                            <Star size={15} /> Send Feedback
                         </button>
                     </div>
+                </div>
+            </header>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {cards.length > 0 ? (
-                            cards.map((card) => (
-                                <div key={card.id} className="group relative bg-white/60 dark:bg-slate-800/60 backdrop-blur-md p-6 rounded-3xl shadow-lg border border-white/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => openEditModal(card)} className="p-2 bg-yellow-100 text-yellow-600 rounded-lg hover:bg-yellow-200">
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button onClick={() => handleDelete(card.id)} className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
+            <main className="max-w-7xl mx-auto px-6 pt-8">
+                {message && (
+                    <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 rounded-2xl border border-emerald-200 dark:border-emerald-800 text-sm font-medium flex items-center justify-between">
+                        <span>{message}</span>
+                        <X size={16} className="cursor-pointer" onClick={() => setMessage("")} />
+                    </div>
+                )}
 
-                                    <div className="mb-4 flex justify-between items-start">
-                                        <div>
-                                            <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{card.medicine}</h3>
-                                            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
-                                                Active
-                                            </div>
-                                        </div>
+                {/* Patient Navigation Tabs */}
+                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto pb-2">
+                    {[
+                        { id: 'today', label: "Today's Plan", icon: Clock },
+                        { id: 'upcoming', label: "Upcoming Appointments", icon: Calendar },
+                        { id: 'health', label: "Adherence Analytics", icon: TrendingUp },
+                        { id: 'vault', label: "Local Vault 2.0", icon: HardDrive },
+                        { id: 'timeline', label: "Health Timeline", icon: Activity }
+                    ].map(tab => {
+                        const Icon = tab.icon;
+                        const active = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap ${
+                                    active 
+                                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md' 
+                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                            >
+                                <Icon size={16} /> {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
 
-                                        <button
-                                            onClick={() => handleMarkTaken(card)}
-                                            disabled={logs.some(log => log.medicine === card.medicine)}
-                                            className={`p-3 rounded-xl transition-all shadow-sm ${logs.some(log => log.medicine === card.medicine)
-                                                ? "bg-green-500 text-white cursor-default"
-                                                : "bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-green-500 hover:text-white"
-                                                }`}
-                                            title="Mark as Taken"
-                                        >
-                                            <Check size={20} />
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex items-center text-slate-600 dark:text-slate-300">
-                                            <Clock size={16} className="mr-2" />
-                                            <span>{card.time}</span>
-                                        </div>
-                                        <div className="flex items-center text-slate-600 dark:text-slate-300">
-                                            <Repeat size={16} className="mr-2" />
-                                            <span>{card.frequency}</span>
-                                        </div>
-                                        {card.frequency === "Specific Days" && (
-                                            <div className="flex items-start text-slate-600 dark:text-slate-300">
-                                                <Calendar size={16} className="mr-2 mt-1" />
-                                                <span className="text-sm">{card.selectedDays?.join(", ")}</span>
-                                            </div>
-                                        )}
-                                    </div>
+                {/* TAB 1: TODAY */}
+                {activeTab === 'today' && (
+                    <div>
+                        {/* Summary Metrics Bar */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center justify-between text-slate-400 mb-2">
+                                    <span className="text-xs font-semibold uppercase tracking-wider">Today's Adherence</span>
+                                    <Activity className="text-cyan-500" size={18} />
                                 </div>
-                            ))
+                                <p className="text-3xl font-extrabold text-slate-800 dark:text-white">{todayAdherence}%</p>
+                                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full mt-3 overflow-hidden">
+                                    <div className="bg-gradient-to-r from-cyan-500 to-blue-600 h-full rounded-full transition-all" style={{ width: `${todayAdherence}%` }}></div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center justify-between text-slate-400 mb-2">
+                                    <span className="text-xs font-semibold uppercase tracking-wider">Daily Streak</span>
+                                    <Sparkles className="text-amber-500" size={18} />
+                                </div>
+                                <p className="text-3xl font-extrabold text-amber-500">{streak} Days 🔥</p>
+                                <p className="text-xs text-slate-400 mt-2">Consecutive adherence visits</p>
+                            </div>
+
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center justify-between text-slate-400 mb-2">
+                                    <span className="text-xs font-semibold uppercase tracking-wider">Doses Completed</span>
+                                    <CheckCircle2 className="text-emerald-500" size={18} />
+                                </div>
+                                <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">{completedCount} / {dueMeds.length}</p>
+                                <p className="text-xs text-slate-400 mt-2">Scheduled for today</p>
+                            </div>
+
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <div className="flex items-center justify-between text-slate-400 mb-2">
+                                    <span className="text-xs font-semibold uppercase tracking-wider">Emergency Contacts</span>
+                                    <Phone className="text-purple-500" size={18} />
+                                </div>
+                                <p className="text-3xl font-extrabold text-purple-600">{userProfile.emergencyContacts?.length || emergencyContacts.length}</p>
+                                <button onClick={() => setIsEmergencyConfigOpen(true)} className="text-xs text-purple-600 font-semibold mt-2 hover:underline">
+                                    Manage Contacts →
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Medications Checklist Header */}
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Today's Medication Checklist</h2>
+                                <p className="text-sm text-slate-500">Track and log your active dosage schedule.</p>
+                            </div>
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium text-sm px-4 py-2.5 rounded-xl hover:opacity-90 transition-all shadow-sm flex items-center gap-2"
+                            >
+                                <Plus size={18} /> Add Medication 2.0
+                            </button>
+                        </div>
+
+                        {dueMeds.length === 0 ? (
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-12 text-center shadow-sm">
+                                <Heart className="mx-auto text-cyan-500 mb-3" size={40} />
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-white">No Active Medications Scheduled</h3>
+                                <p className="text-slate-500 text-sm max-w-sm mx-auto mt-1 mb-4">You have no active medication reminders set for today.</p>
+                                <button onClick={() => setIsAddModalOpen(true)} className="bg-cyan-500 text-white text-sm font-medium px-4 py-2 rounded-xl">Add Medication Now</button>
+                            </div>
                         ) : (
-                            <div className="col-span-full py-12 text-center bg-white/40 dark:bg-slate-800/40 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
-                                <p className="text-slate-500">No active reminders found.</p>
-                                <p className="text-sm text-slate-400 mt-1">Go to the Tracker page to add one!</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {dueMeds.map((med) => {
+                                    const logStatus = loggedMedsMap[med.medicine];
+                                    const isTaken = logStatus === 'taken';
+                                    const isSkipped = logStatus === 'skipped';
+
+                                    return (
+                                        <div key={med.id} className={`bg-white dark:bg-slate-800 rounded-2xl border p-6 shadow-sm flex flex-col justify-between transition-all ${
+                                            isTaken ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/20' : 'border-slate-200 dark:border-slate-700'
+                                        }`}>
+                                            <div>
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div>
+                                                        <span className="text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 px-2.5 py-1 rounded-md">
+                                                            {med.time}
+                                                        </span>
+                                                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mt-2">{med.medicine}</h3>
+                                                        {med.genericName && <p className="text-xs text-slate-400 italic">({med.genericName})</p>}
+                                                    </div>
+                                                    <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                                                        isTaken ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
+                                                        isSkipped ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                                    }`}>
+                                                        {isTaken ? '✓ Taken' : isSkipped ? 'Skipped' : 'Pending'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-1.5 text-sm text-slate-600 dark:text-slate-300 mb-6 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                                                    <p><span className="font-medium text-slate-400">Dosage:</span> {med.dosage} {med.dosageUnit || 'dose'} ({med.route || 'Oral'})</p>
+                                                    <p><span className="font-medium text-slate-400">Instructions:</span> {med.foodRelation === 'after_food' ? 'After food' : 'Before food'} • {med.instructions}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                                                {!isTaken ? (
+                                                    <button
+                                                        onClick={() => handleLogDose(med.medicine, 'taken', med.time)}
+                                                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                                                    >
+                                                        <Check size={16} /> Mark Taken
+                                                    </button>
+                                                ) : (
+                                                    <button disabled className="flex-1 bg-emerald-100 text-emerald-700 text-sm font-semibold py-2 rounded-xl text-center">
+                                                        ✓ Completed
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleLogDose(med.medicine, 'skipped', med.time)}
+                                                    className="px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
+                                                >
+                                                    Skip
+                                                </button>
+                                                <button
+                                                    onClick={() => handlePauseMedication(med.id)}
+                                                    className="p-2 text-slate-400 hover:text-amber-500 rounded-xl transition-colors"
+                                                    title="Pause Reminders"
+                                                >
+                                                    <Pause size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
+                )}
 
-                    {/* APPOINTMENTS SECTION */}
-                    <div className="mt-10">
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-6">
-                            <Calendar className="text-blue-500" />
-                            Upcoming Appointments
-                        </h2>
+                {/* TAB 2: UPCOMING APPOINTMENTS */}
+                {activeTab === 'upcoming' && (
+                    <div>
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Scheduled Appointments</h2>
+                            <p className="text-sm text-slate-500">Your upcoming consultations with verified physicians.</p>
+                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {appointments.length > 0 ? (
-                                appointments.map((apt) => (
-                                    <div key={apt.id} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-md p-6 rounded-3xl shadow-lg border border-white/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                                        <div className="flex items-center gap-4 mb-4">
-                                            <div className="flex flex-col items-center justify-center w-14 h-14 bg-blue-50 dark:bg-slate-700/50 rounded-2xl text-blue-600 dark:text-blue-400 font-bold border border-blue-100 dark:border-slate-600">
-                                                <span className="text-xs uppercase">{new Date(apt.date).toLocaleDateString('en-US', { month: 'short' })}</span>
-                                                <span className="text-xl">{new Date(apt.date).getDate()}</span>
-                                            </div>
+                        {appointments.length === 0 ? (
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-12 text-center shadow-sm">
+                                <Calendar className="mx-auto text-blue-500 mb-3" size={40} />
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-white">No Upcoming Appointments</h3>
+                                <p className="text-slate-500 text-sm max-w-sm mx-auto mt-1 mb-4">Book a consultation with a verified doctor from the Telemedicine directory.</p>
+                                <a href="/find-doctors" className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl inline-block">Find Doctors</a>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {appointments.map(apt => (
+                                    <div key={apt.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                                        <div className="flex items-start justify-between mb-4">
                                             <div>
-                                                <h3 className="font-bold text-slate-800 dark:text-white text-lg">Dr. {apt.doctorId ? apt.doctorId.split('@')[0] : "Doctor"}</h3>
-                                                <p className="text-sm text-slate-500 flex items-center gap-1.5">
-                                                    <Clock size={14} /> {apt.time}
-                                                </p>
+                                                <span className="text-xs font-semibold text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-1 rounded-md">
+                                                    {apt.date} • {apt.time}
+                                                </span>
+                                                <h3 className="text-xl font-bold text-slate-800 dark:text-white mt-2">Dr. {apt.doctorId}</h3>
+                                                <p className="text-xs text-slate-400">Status: <span className="font-semibold text-blue-600 uppercase">{apt.status}</span></p>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                                <Video size={20} />
                                             </div>
                                         </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${apt.status === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                {apt.status ? apt.status.charAt(0).toUpperCase() + apt.status.slice(1) : "Confirmed"}
-                                            </span>
-                                            <div className="flex gap-2 items-center">
-                                                {apt.status === 'confirmed' && (
-                                                    <button
-                                                        onClick={() => window.open(`https://meet.jit.si/meditrack-${apt.id}`, '_blank')}
-                                                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-200 transition-colors"
-                                                    >
-                                                        <Video size={14} /> Join Call
-                                                    </button>
-                                                )}
-                                                <button className="text-sm text-slate-400 hover:text-red-500 transition-colors">Cancel</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="col-span-full py-8 text-center bg-white/40 dark:bg-slate-800/40 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
-                                    <p className="text-slate-500">No upcoming appointments.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* MEDICAL RECORDS SECTION */}
-                    <div className="mt-10">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                <FileText className="text-purple-500" />
-                                Medical Records
-                            </h2>
-                            <button
-                                onClick={() => setIsUploadModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-xl font-semibold hover:bg-purple-200 transition-colors"
-                            >
-                                <FilePlus size={18} />
-                                Upload Record
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {medicalRecords.length > 0 ? (
-                                medicalRecords.map((record) => (
-                                    <div key={record.id} className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-md p-6 rounded-3xl shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                                                    <FileText className="text-purple-600" size={20} />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-bold text-slate-800 dark:text-white">{record.title}</h3>
-                                                    <p className="text-xs text-slate-500">{new Date(record.uploadedAt).toLocaleDateString()}</p>
-                                                </div>
-                                            </div>
+                                        <div className="flex gap-3 pt-2">
                                             <button
-                                                onClick={() => handleDeleteRecord(record.id)}
-                                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                onClick={() => window.open(`https://meet.jit.si/${apt.jitsiRoom}`, '_blank')}
+                                                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm"
                                             >
-                                                <Trash2 size={16} />
+                                                <Video size={16} /> Join Secure Video Room
                                             </button>
                                         </div>
-                                        {record.description && (
-                                            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">{record.description}</p>
-                                        )}
-                                        <button
-                                            onClick={() => window.open(record.fileData, '_blank')}
-                                            className="w-full py-2 px-4 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                                        >
-                                            View Document
-                                        </button>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="col-span-full py-8 text-center bg-white/40 dark:bg-slate-800/40 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700">
-                                    <p className="text-slate-500">No medical records uploaded yet.</p>
-                                </div>
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                </div>
-            </div>
+                )}
 
-            {/* PROFILE EDIT MODAL */}
-            {isProfileEditOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[100]">
-                    <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white">Edit Profile</h2>
-                        <div className="flex flex-col items-center mb-6">
-                            <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden mb-4 relative group">
-                                {editProfileData.profilePic ? (
-                                    <img src={editProfileData.profilePic} alt="Profile Preview" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                        <User size={32} />
+                {/* TAB 3: ADHERENCE ANALYTICS */}
+                {activeTab === 'health' && (
+                    <div>
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Adherence Analytics & Intelligence 2.0</h2>
+                            <p className="text-sm text-slate-500">Comprehensive compliance calculations based on actual dose logs.</p>
+                        </div>
+
+                        {adherenceIntel && (
+                            <div className="space-y-6">
+                                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-2xl flex items-start gap-3">
+                                    <Sparkles className="text-purple-600 shrink-0 mt-0.5" size={20} />
+                                    <div>
+                                        <h4 className="font-bold text-purple-900 dark:text-purple-300 text-sm">Adherence Pattern Insights</h4>
+                                        <p className="text-sm text-purple-700 dark:text-purple-400 mt-0.5">{adherenceIntel.patternInsight}</p>
                                     </div>
-                                )}
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => fileInputRef.current.click()}>
-                                    <Camera className="text-white" size={24} />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase">30-Day Adherence</p>
+                                        <p className="text-4xl font-extrabold text-cyan-600 mt-2">{adherenceIntel.adherence30}%</p>
+                                    </div>
+                                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase">90-Day Adherence</p>
+                                        <p className="text-4xl font-extrabold text-blue-600 mt-2">{adherenceIntel.adherence90}%</p>
+                                    </div>
+                                    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase">Overall Adherence</p>
+                                        <p className="text-4xl font-extrabold text-purple-600 mt-2">{adherenceIntel.overallRate}%</p>
+                                    </div>
                                 </div>
                             </div>
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                            />
-                            <div className="flex gap-4 mt-2">
-                                <button type="button" onClick={() => fileInputRef.current.click()} className="text-sm text-cyan-600 font-medium hover:text-cyan-700">Change Photo</button>
-                                {editProfileData.profilePic && (
-                                    <button type="button" onClick={() => setEditProfileData({ ...editProfileData, profilePic: "" })} className="text-sm text-red-500 font-medium hover:text-red-700">Remove Photo</button>
-                                )}
+                        )}
+                    </div>
+                )}
+
+                {/* TAB 4: LOCAL VAULT 2.0 */}
+                {activeTab === 'vault' && (
+                    <div>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Local Medical Vault 2.0</h2>
+                                <p className="text-sm text-slate-500">Stored local-only in your browser IndexedDB (Zero Cloud Leakage).</p>
+                            </div>
+                            <button
+                                onClick={() => setIsUploadModalOpen(true)}
+                                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium text-sm px-4 py-2.5 rounded-xl flex items-center gap-2"
+                            >
+                                <Upload size={18} /> Store Local Document
+                            </button>
+                        </div>
+
+                        {/* Storage Quota Meter */}
+                        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <HardDrive className="text-cyan-500" size={24} />
+                                <div>
+                                    <p className="text-sm font-bold text-slate-800 dark:text-white">Local Storage Quota</p>
+                                    <p className="text-xs text-slate-400">{storageUsage.usedMB} MB used of 50 MB local capacity</p>
+                                </div>
+                            </div>
+                            <div className="w-48 bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                                <div className="bg-cyan-500 h-full rounded-full" style={{ width: `${(storageUsage.usedMB / 50) * 100}%` }}></div>
                             </div>
                         </div>
 
-                        <form onSubmit={handleProfileUpdate} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Full Name</label>
+                        {/* Search and Category Filter */}
+                        <div className="flex flex-col md:flex-row gap-4 mb-6">
+                            <div className="flex-1 relative">
+                                <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
                                 <input
                                     type="text"
-                                    value={editProfileData.name}
-                                    onChange={(e) => setEditProfileData({ ...editProfileData, name: e.target.value })}
-                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-cyan-500 outline-none"
+                                    placeholder="Search medical documents..."
+                                    value={recordSearch}
+                                    onChange={(e) => setRecordSearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Phone Number</label>
-                                <input
-                                    type="tel"
-                                    value={editProfileData.phoneNumber}
-                                    onChange={(e) => setEditProfileData({ ...editProfileData, phoneNumber: e.target.value })}
-                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-cyan-500 outline-none"
-                                />
+                        </div>
+
+                        {medicalRecords.length === 0 ? (
+                            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-12 text-center shadow-sm">
+                                <FileText className="mx-auto text-slate-400 mb-3" size={40} />
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-white">No Local Documents Stored</h3>
+                                <p className="text-slate-500 text-sm max-w-sm mx-auto mt-1 mb-4">Upload prescriptions, X-rays, or lab reports to store locally on this device.</p>
+                                <button onClick={() => setIsUploadModalOpen(true)} className="bg-cyan-500 text-white text-sm font-medium px-4 py-2 rounded-xl">Upload Document</button>
                             </div>
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setIsProfileEditOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-                                <button type="submit" className="px-6 py-2 bg-black text-white rounded-xl hover:opacity-90">Save Changes</button>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {medicalRecords
+                                    .filter(r => r.title.toLowerCase().includes(recordSearch.toLowerCase()))
+                                    .map(record => (
+                                        <div key={record.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <span className="text-xs font-semibold bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300 px-2.5 py-1 rounded-md">
+                                                        {record.category || 'Prescription'}
+                                                    </span>
+                                                    <button onClick={() => handleDeleteRecord(record.id)} className="text-slate-400 hover:text-red-500">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                                <h3 className="font-bold text-slate-800 dark:text-white text-lg">{record.title}</h3>
+                                                <p className="text-xs text-slate-400 mt-1">{new Date(record.uploadedAt).toLocaleDateString()}</p>
+                                                {record.description && <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{record.description}</p>}
+                                            </div>
+
+                                            {record.fileData && (
+                                                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                                    <a
+                                                        href={record.fileData}
+                                                        download={record.fileName || "medical-document"}
+                                                        className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white text-xs font-semibold py-2 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                                                    >
+                                                        <FileText size={14} /> Download File
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                             </div>
-                        </form>
+                        )}
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* INTERACTION ANALYSIS MODAL */}
-            {isInteractionModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[100]">
-                    <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl w-full max-w-2xl animate-in fade-in zoom-in duration-200 max-h-[80vh] overflow-y-auto">
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
-                            <Sparkles className="text-purple-600" size={24} />
-                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Interaction Analysis</h2>
+                {/* TAB 5: UNIFIED HEALTH TIMELINE */}
+                {activeTab === 'timeline' && (
+                    <div>
+                        <div className="mb-6">
+                            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Unified Patient Health Timeline</h2>
+                            <p className="text-sm text-slate-500">Chronological history of doses, appointments, documents, and SOS events.</p>
                         </div>
 
-                        <div className="prose dark:prose-invert max-w-none">
-                            <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl mb-4 text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-                                {interactionResult || "No significant interactions found."}
+                        {timeline.length === 0 ? (
+                            <div className="text-center py-12 text-slate-400">No health events recorded in timeline yet.</div>
+                        ) : (
+                            <div className="relative border-l-2 border-slate-200 dark:border-slate-700 ml-4 space-y-6">
+                                {timeline.map((event, idx) => (
+                                    <div key={idx} className="relative pl-6">
+                                        <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-cyan-500 border-2 border-white dark:border-slate-900"></div>
+                                        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                                                <span className="font-semibold uppercase text-cyan-600 dark:text-cyan-400">{event.type}</span>
+                                                <span>{new Date(event.timestamp).toLocaleString()}</span>
+                                            </div>
+                                            <h4 className="font-bold text-slate-800 dark:text-white">{event.title}</h4>
+                                            <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">{event.description}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </main>
+
+            {/* MODAL: SOS Emergency Trigger */}
+            {isSosModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full border border-red-200 shadow-2xl">
+                        <div className="flex items-center gap-3 text-red-600 mb-4">
+                            <ShieldAlert size={32} />
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800 dark:text-white">Trigger Emergency SOS Alert</h3>
+                                <p className="text-xs text-slate-500">Notifies all configured emergency contacts via SMS/Voice.</p>
                             </div>
                         </div>
 
-                        <div className="flex justify-end mt-6">
+                        <div className="mb-4">
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Optional Emergency Note:</label>
+                            <textarea
+                                value={sosNote}
+                                onChange={(e) => setSosNote(e.target.value)}
+                                placeholder="I need immediate emergency assistance with my medication..."
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm h-24"
+                            />
+                        </div>
+
+                        <p className="text-[11px] text-slate-400 mb-6 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl">
+                            ⚠️ DISCLAIMER: MediTrack is an emergency-contact communication tool and does NOT replace 911 or official emergency medical services.
+                        </p>
+
+                        <div className="flex gap-3">
                             <button
-                                onClick={() => setIsInteractionModalOpen(false)}
-                                className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold hover:scale-105 transition-transform"
+                                onClick={handleTriggerSos}
+                                disabled={isSosBroadcasting}
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-red-500/30"
                             >
-                                Close
+                                {isSosBroadcasting ? "Broadcasting..." : "CONFIRM BROADCAST SOS"}
+                            </button>
+                            <button
+                                onClick={() => setIsSosModalOpen(false)}
+                                className="px-4 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-100 rounded-xl"
+                            >
+                                Cancel
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-            {isEditModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[100]">
-                    <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white">Edit Reminder</h2>
-                        <form onSubmit={handleUpdate} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Medicine Name</label>
-                                <input
-                                    type="text"
-                                    value={editMedicine}
-                                    onChange={(e) => setEditMedicine(e.target.value)}
-                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-cyan-500 outline-none"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Time</label>
-                                <input
-                                    type="time"
-                                    value={editTime}
-                                    onChange={(e) => setEditTime(e.target.value)}
-                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-cyan-500 outline-none"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Frequency</label>
-                                <select
-                                    value={editFrequency}
-                                    onChange={(e) => setEditFrequency(e.target.value)}
-                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-cyan-500 outline-none"
-                                >
-                                    <option value="Daily">Daily</option>
-                                    <option value="Specific Days">Specific Days</option>
-                                </select>
-                            </div>
 
-                            {editFrequency === "Specific Days" && (
-                                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                    <p className="text-sm font-semibold mb-2">Select Days:</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {daysOfWeek.map(day => (
-                                            <label key={day} className="flex items-center space-x-2 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={editSelectedDays.includes(day)}
-                                                    onChange={() => handleEditDayChange(day)}
-                                                    className="rounded text-cyan-600 focus:ring-cyan-500"
-                                                />
-                                                <span className="text-sm">{day.slice(0, 3)}</span>
-                                            </label>
-                                        ))}
+            {/* MODAL: Emergency Contacts Configuration */}
+            {isEmergencyConfigOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Emergency Contacts Setup</h3>
+                        <form onSubmit={handleSaveEmergencyContacts} className="space-y-4">
+                            {emergencyContacts.map((contact, idx) => (
+                                <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Contact Name"
+                                            value={contact.name}
+                                            onChange={(e) => {
+                                                const updated = [...emergencyContacts];
+                                                updated[idx].name = e.target.value;
+                                                setEmergencyContacts(updated);
+                                            }}
+                                            className="bg-white dark:bg-slate-800 border p-2.5 rounded-xl text-sm"
+                                            required
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Relationship (e.g. Spouse, Caregiver)"
+                                            value={contact.relationship}
+                                            onChange={(e) => {
+                                                const updated = [...emergencyContacts];
+                                                updated[idx].relationship = e.target.value;
+                                                setEmergencyContacts(updated);
+                                            }}
+                                            className="bg-white dark:bg-slate-800 border p-2.5 rounded-xl text-sm"
+                                        />
                                     </div>
+                                    <input
+                                        type="tel"
+                                        placeholder="Phone Number (+1... or 10 digits)"
+                                        value={contact.phoneNumber}
+                                        onChange={(e) => {
+                                            const updated = [...emergencyContacts];
+                                            updated[idx].phoneNumber = e.target.value;
+                                            setEmergencyContacts(updated);
+                                        }}
+                                        className="w-full bg-white dark:bg-slate-800 border p-2.5 rounded-xl text-sm"
+                                        required
+                                    />
                                 </div>
-                            )}
+                            ))}
 
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-                                <button type="submit" className="px-6 py-2 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700">Update</button>
+                            <div className="flex gap-3 pt-2">
+                                <button type="submit" className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-xl">Save Contacts</button>
+                                <button type="button" onClick={() => setIsEmergencyConfigOpen(false)} className="px-4 py-3 text-slate-500 font-semibold">Cancel</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            {/* UPLOAD MEDICAL RECORD MODAL */}
-            {isUploadModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[100]">
-                    <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-2xl font-bold mb-6 text-slate-800 dark:text-white flex items-center gap-2">
-                            <Upload className="text-purple-600" /> Upload Medical Record
-                        </h2>
-                        <form onSubmit={handleUploadRecord} className="space-y-4">
+            {/* MODAL: Medication 2.0 Add */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-lg w-full border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Add Medication 2.0</h3>
+                        <form onSubmit={handleAddMedication} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Title *</label>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Medicine Brand Name *</label>
                                 <input
                                     type="text"
-                                    value={uploadData.title}
-                                    onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
-                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-purple-500 outline-none"
-                                    placeholder="e.g., Blood Test Report"
                                     required
+                                    value={newMed.medicine}
+                                    onChange={(e) => setNewMed({ ...newMed, medicine: e.target.value })}
+                                    placeholder="e.g. Lipitor"
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
-                                <textarea
-                                    value={uploadData.description}
-                                    onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
-                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-purple-500 outline-none resize-none"
-                                    rows="3"
-                                    placeholder="Optional notes about this record"
-                                />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Generic Name</label>
+                                    <input
+                                        type="text"
+                                        value={newMed.genericName}
+                                        onChange={(e) => setNewMed({ ...newMed, genericName: e.target.value })}
+                                        placeholder="e.g. Atorvastatin"
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Scheduled Time *</label>
+                                    <input
+                                        type="time"
+                                        required
+                                        value={newMed.time}
+                                        onChange={(e) => setNewMed({ ...newMed, time: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Upload File *</label>
-                                <input
-                                    type="file"
-                                    accept="image/*,application/pdf"
-                                    onChange={handleFileUpload}
-                                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-purple-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200"
-                                    required
-                                />
-                                <p className="text-xs text-slate-400 mt-1">Max size: 2MB (Images or PDFs)</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Food Relation</label>
+                                    <select
+                                        value={newMed.foodRelation}
+                                        onChange={(e) => setNewMed({ ...newMed, foodRelation: e.target.value })}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                    >
+                                        <option value="after_food">After Food</option>
+                                        <option value="before_food">Before Food</option>
+                                        <option value="with_food">With Food</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Route</label>
+                                    <input
+                                        type="text"
+                                        value={newMed.route}
+                                        onChange={(e) => setNewMed({ ...newMed, route: e.target.value })}
+                                        placeholder="Oral / Injection"
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                    />
+                                </div>
                             </div>
 
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setIsUploadModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-                                <button
-                                    type="submit"
-                                    disabled={isUploading}
-                                    className="px-6 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50"
+                            <div className="flex gap-3 pt-4">
+                                <button type="submit" className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-3 rounded-xl">Save Schedule</button>
+                                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-3 text-slate-500 font-semibold">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Upload Medical Document to Vault 2.0 */}
+            {isUploadModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Store Local Medical Document</h3>
+                        <form onSubmit={handleUploadRecord} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Document Title *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={uploadData.title}
+                                    onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
+                                    placeholder="e.g. Blood Test Report June 2026"
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Category</label>
+                                <select
+                                    value={uploadData.category}
+                                    onChange={(e) => setUploadData({ ...uploadData, category: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
                                 >
-                                    {isUploading ? "Uploading..." : "Upload"}
-                                </button>
+                                    <option value="Prescription">Prescription</option>
+                                    <option value="Lab Report">Lab Report</option>
+                                    <option value="Scan">Scan / X-Ray</option>
+                                    <option value="Medical Certificate">Medical Certificate</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Choose File *</label>
+                                <input
+                                    type="file"
+                                    required
+                                    onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => setUploadData(prev => ({ ...prev, file: reader.result, fileName: file.name }));
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-cyan-50 file:text-cyan-700"
+                                />
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button type="submit" className="flex-1 bg-cyan-500 text-white font-bold py-3 rounded-xl">Save Locally</button>
+                                <button type="button" onClick={() => setIsUploadModalOpen(false)} className="px-4 py-3 text-slate-500 font-semibold">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: Pilot Feedback */}
+            {isFeedbackOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Send Product Feedback</h3>
+                        <p className="text-xs text-slate-500 mb-4">Help us refine MediTrack for pilot deployment.</p>
+
+                        <form onSubmit={handleSubmitFeedback} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Rating (1-5 Stars)</label>
+                                <select
+                                    value={feedbackData.rating}
+                                    onChange={(e) => setFeedbackData({ ...feedbackData, rating: Number(e.target.value) })}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                >
+                                    <option value={5}>5 Stars - Excellent</option>
+                                    <option value={4}>4 Stars - Good</option>
+                                    <option value={3}>3 Stars - Average</option>
+                                    <option value={2}>2 Stars - Needs Improvement</option>
+                                    <option value={1}>1 Star - Poor</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Feedback Category</label>
+                                <select
+                                    value={feedbackData.category}
+                                    onChange={(e) => setFeedbackData({ ...feedbackData, category: e.target.value })}
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm"
+                                >
+                                    <option value="experience">User Experience</option>
+                                    <option value="bug">Report a Bug</option>
+                                    <option value="feature">Feature Request</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Your Comments *</label>
+                                <textarea
+                                    required
+                                    value={feedbackData.comment}
+                                    onChange={(e) => setFeedbackData({ ...feedbackData, comment: e.target.value })}
+                                    placeholder="Tell us about your experience..."
+                                    className="w-full bg-slate-50 dark:bg-slate-900 border p-3 rounded-xl text-sm h-24"
+                                />
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button type="submit" className="flex-1 bg-purple-600 text-white font-bold py-3 rounded-xl">Submit Feedback</button>
+                                <button type="button" onClick={() => setIsFeedbackOpen(false)} className="px-4 py-3 text-slate-500 font-semibold">Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -971,37 +1012,3 @@ function Dashboard() {
 }
 
 export default Dashboard;
-
-function DashboardSkeleton() {
-    return (
-        <div className="min-h-screen p-6 w-full max-w-7xl mx-auto animate-pulse">
-            <div className="h-10 w-64 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-10"></div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Profile Skeleton */}
-                <div className="lg:col-span-1">
-                    <div className="bg-white/50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 h-[400px]">
-                        <div className="w-24 h-24 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mb-4"></div>
-                        <div className="h-6 w-32 bg-slate-300 dark:bg-slate-700 rounded mx-auto mb-2"></div>
-                        <div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded mx-auto mb-8"></div>
-
-                        <div className="space-y-4">
-                            <div className="h-16 w-full bg-slate-200 dark:bg-slate-700 rounded-xl"></div>
-                            <div className="h-16 w-full bg-slate-200 dark:bg-slate-700 rounded-xl"></div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Tracker Skeleton */}
-                <div className="lg:col-span-2">
-                    <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded mb-6"></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="h-40 bg-white/50 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700"></div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}

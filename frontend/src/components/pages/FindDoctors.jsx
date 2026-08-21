@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, MessageSquare, Star, Stethoscope, MapPin, X, Calendar, Check, Clock, CheckCircle, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { authFetch } from '../../utils/api';
 
 function FindDoctors() {
     const [doctors, setDoctors] = useState([]);
@@ -20,7 +21,7 @@ function FindDoctors() {
     useEffect(() => {
         const fetchDoctors = async () => {
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-doctors`);
+                const res = await authFetch('/get-doctors');
                 const data = await res.json();
                 if (res.ok) {
                     setDoctors(data.doctors);
@@ -39,110 +40,21 @@ function FindDoctors() {
         navigate('/messages', { state: { startChatWith: doctor } });
     };
 
-    const [paymentStep, setPaymentStep] = useState(0); // 0: Booking Form, 1: Payment
-    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [isBooking, setIsBooking] = useState(false);
 
     const openBookingModal = (doctor) => {
         setSelectedDoctor(doctor);
         setShowModal(true);
         setBookingSuccess(false);
-        setPaymentStep(0); // Reset step
         setBookingData({ date: "", time: "" });
     };
 
-    // Load Razorpay Script
-    const loadRazorpay = () => {
-        return new Promise((resolve) => {
-            const script = document.createElement("script");
-            script.src = "https://checkout.razorpay.com/v1/checkout.js";
-            script.onload = () => resolve(true);
-            script.onerror = () => resolve(false);
-            document.body.appendChild(script);
-        });
-    };
-
-    // Proceed to Payment with Razorpay
-    const handleProceedToPayment = async (e) => {
+    const handleConfirmBooking = async (e) => {
         e.preventDefault();
         if (!bookingData.date || !bookingData.time) return;
-
-        const res = await loadRazorpay();
-        if (!res) {
-            alert("Razorpay SDK failed to load. Are you online?");
-            return;
-        }
-
-        // 1. Create Order
-        try {
-            const orderRes = await fetch(`${import.meta.env.VITE_API_BASE}/create-order`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: 2000, currency: 'INR' }) // Using INR for Razorpay India
-            });
-            const order = await orderRes.json();
-
-            if (!orderRes.ok) {
-                alert("Server error: " + order.message);
-                return;
-            }
-
-            // 2. Open Razorpay Checkout
-            const options = {
-                key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Enter the Key ID generated from the Dashboard
-                amount: order.amount,
-                currency: order.currency,
-                name: "MediTrack",
-                description: "Appointment Booking Fee",
-                image: "https://your-logo-url.com/logo.png", // Optional
-                order_id: order.id,
-                handler: async function (response) {
-                    // 3. Verify Payment
-                    try {
-                        const verifyRes = await fetch(`${import.meta.env.VITE_API_BASE}/verify-payment`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature
-                            })
-                        });
-
-                        const verifyData = await verifyRes.json();
-
-                        if (verifyRes.ok && verifyData.status === "success") {
-                            await bookAppointment();
-                        } else {
-                            alert("Payment verification failed!");
-                        }
-                    } catch (error) {
-                        console.error("Verification Error:", error);
-                        alert("Payment successful but verification failed.");
-                    }
-                },
-                prefill: {
-                    name: localStorage.getItem("userName") || "Patient",
-                    email: localStorage.getItem("userEmail") || "patient@example.com",
-                    contact: "9999999999"
-                },
-                notes: {
-                    address: "Razorpay Corporate Office"
-                },
-                theme: {
-                    color: "#0891b2" // Cyan-600
-                }
-            };
-
-            const rzp1 = new window.Razorpay(options);
-            rzp1.on("payment.failed", function (response) {
-                alert(response.error.description);
-            });
-            rzp1.open();
-
-        } catch (error) {
-            console.error("Payment Error:", error);
-            alert("Payment failed to initialize.");
-        }
+        setIsBooking(true);
+        await bookAppointment();
+        setIsBooking(false);
     };
 
     const bookAppointment = async () => {
@@ -150,20 +62,19 @@ function FindDoctors() {
         const currentUserName = localStorage.getItem("userName");
 
         if (!currentUserEmail) {
-            alert("Please login to book an appointment.");
+            alert("Please login to book an appointment");
+            navigate('/login');
             return;
         }
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/book-appointment`, {
+            const res = await authFetch('/book-appointment', {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     doctorId: selectedDoctor.email,
-                    patientId: currentUserEmail,
-                    patientName: currentUserName || "Patient",
                     date: bookingData.date,
-                    time: bookingData.time
+                    time: bookingData.time,
+                    patientName: currentUserName
                 })
             });
 
@@ -273,7 +184,7 @@ function FindDoctors() {
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleProceedToPayment} className="p-6 space-y-4">
+                                <form onSubmit={handleConfirmBooking} className="p-6 space-y-4">
                                     <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
                                         <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                                             {selectedDoctor.profilePic ? (
@@ -316,7 +227,13 @@ function FindDoctors() {
                                         </div>
                                     </div>
 
-                                    <div className="pt-4 flex gap-3">
+                                    <div className="pt-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                                        <p className="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-center gap-2">
+                                            <span>💊</span> Pay at Clinic — Payment will be collected at the time of your visit.
+                                        </p>
+                                    </div>
+
+                                    <div className="pt-2 flex gap-3">
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -329,9 +246,14 @@ function FindDoctors() {
                                         </button>
                                         <button
                                             type="submit"
-                                            className="flex-1 py-3 px-4 bg-cyan-500 text-white rounded-xl font-semibold hover:bg-cyan-600 transition-colors shadow-lg shadow-cyan-500/20"
+                                            disabled={isBooking}
+                                            className="flex-1 py-3 px-4 bg-cyan-500 text-white rounded-xl font-semibold hover:bg-cyan-600 transition-colors shadow-lg shadow-cyan-500/20 disabled:opacity-60 flex items-center justify-center gap-2"
                                         >
-                                            Proceed to Pay
+                                            {isBooking ? (
+                                                <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span> Booking...</>
+                                            ) : (
+                                                "✅ Confirm Booking"
+                                            )}
                                         </button>
                                     </div>
                                 </form>

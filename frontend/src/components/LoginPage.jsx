@@ -24,10 +24,12 @@ function LoginPage() {
 
             if (response.ok) {
                 alert("Login successful");
+                if (data.token) {
+                    localStorage.setItem("authToken", data.token);
+                }
                 localStorage.setItem("userEmail", email);
                 localStorage.setItem("userName", data.user.name || "");
                 localStorage.setItem("userPhone", data.user.phoneNumber || "");
-
                 localStorage.setItem("userRole", data.user.role || "patient");
 
                 // --- FIX ---
@@ -37,6 +39,8 @@ function LoginPage() {
 
                 if (data.user.role === 'doctor') {
                     navigate("/doctor-dashboard");
+                } else if (data.user.role === 'admin') {
+                    navigate("/admin");
                 } else {
                     navigate("/main");
                 }

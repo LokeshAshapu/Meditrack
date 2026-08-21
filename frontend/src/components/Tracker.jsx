@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Phone, MessageCircle, Mail } from 'lucide-react';
-
+import { authFetch } from '../utils/api';
 
 function Tracker() {
     const [email, setEmail] = useState("");
@@ -14,7 +14,6 @@ function Tracker() {
 
     const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-    // Get email from localStorage on component mount
     useEffect(() => {
         const storedEmail = localStorage.getItem("userEmail");
         if (storedEmail) {
@@ -39,12 +38,9 @@ function Tracker() {
         }
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/add-tracker`, {
+            const res = await authFetch('/add-tracker', {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ email, medicine, time, frequency, selectedDays, startDate, endDate }),
+                body: JSON.stringify({ medicine, time, frequency, selectedDays, startDate, endDate }),
             });
 
             const data = await res.json();

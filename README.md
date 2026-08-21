@@ -1,77 +1,132 @@
-# 🏥 MediTrack
+# 🏥 MediTrack Healthcare SaaS Platform (v2.4.0-pilot)
 
-**MediTrack** is a secure and user-friendly web application for managing personal medical records. It allows users to upload, organize, and share their medical documents digitally. Built with Node.js, Express, MongoDB, and EJS, MediTrack aims to streamline healthcare documentation for both patients and medical professionals.
+> **Current Stage:** Pilot / Commercialization-Ready Prototype  
+> **Version:** `v2.4.0-pilot` | **Environment:** Pilot / Institutional Evaluation  
+
+**MediTrack** is an advanced, privacy-first healthcare management and telemedicine SaaS platform. Designed for high medication adherence, local-first medical document isolation, secure encrypted telemedicine chat, and multi-channel emergency health alerts.
+
+> [!NOTE]
+> MediTrack is currently at a **pilot and commercialization-ready prototype stage**. It provides measurable software infrastructure for medication compliance and telemedicine workflows, but is NOT clinically certified, medically validated, or a replacement for official emergency services.
 
 ---
 
 ## 📌 Table of Contents
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Usage](#usage)
-- [Screenshots](#screenshots)
-- [Code Highlights](#code-highlights)
-- [Future Enhancements](#future-enhancements)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact](#contact)
+- [Product Overview](#-product-overview)
+- [System Architecture](#-system-architecture)
+- [Security & Authentication](#-security--authentication)
+- [Core Features](#-core-features)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [Testing & Quality Assurance](#-testing--quality-assurance)
+- [Deployment & Serverless Readiness](#-deployment--serverless-readiness)
+- [Documentation Index](#-documentation-index)
+- [Known Limitations & Development Roadmap](#-known-limitations--development-roadmap)
 
 ---
 
-## 🚀 Features
+## 🚀 Product Overview
 
-- 🔐 **Authentication** – Secure user registration and login
-- 🗂️ **Dashboard** – View, Add or delete records
-- 📤 **Share via Email** – Send medical records directly to doctors
-- 💻 **Responsive Design** – Mobile-friendly and accessible UI
-
----
-
-## 🛠️ Tech Stack
-
-| Category     | Technology              |
-|--------------|--------------------------|
-| Backend      | Node.js, Express.js      |
-| Frontend     | HTML, Tailwind CSS       |
-| Database     | MongoDB with Mongoose    |
-| Email Service| Nodemailer               |
-| Auth & Session | express-session, bcrypt |
+MediTrack solves critical healthcare management friction points:
+1. **Medication Non-Adherence**: Multi-channel escalation alerts (FCM Web Push ➔ Automated Twilio Voice Call ➔ SMS ➔ HTML Email Cards).
+2. **Medical Privacy & Data Sovereignty**: Local-first document vault using browser `IndexedDB` (`localforage`) ensuring sensitive medical scans and lab tests remain on-device without cloud leakage.
+3. **Telemedicine Ecosystem**: Verified physician directory, AES-256 client-side encrypted messaging, and instant WebRTC video rooms (`Jitsi`).
+4. **Real-time Business & Adherence Analytics**: Executive dashboard tracking adherence rates, consultation stats, and network health.
 
 ---
 
-## 📤 Usage
+## 🛠️ System Architecture
 
-1. **Register** for a new account or **log in**.
-2. **Manage** the data what you can upload.
-3. **Mail Feature** mail to the users who use the tracking feature
+```
+[ Frontend: React 19 + Vite + Tailwind CSS ]
+         │
+         ├──────► [ Local-First Browser Storage: IndexedDB (localforage) ]
+         │         (Medical Vault: Scans, Prescriptions, Lab Reports)
+         │
+         ├──────► [ Client Cryptography & WebRTC ]
+         │         (AES-256 Client Payload Encryption, Jitsi Video Rooms)
+         │
+         └──────► [ Backend API: Node.js 22 + Express 5 ]
+                   ├── Auth Guard: Token Verification & RBAC Middleware
+                   ├── Firebase Admin SDK (Firestore Database)
+                   ├── Multi-Channel Engine: Twilio Voice & SMS, Nodemailer, FCM
+                   ├── AI Assistant: NVIDIA Llama 3.1 70B Rate-Limited Proxy
+                   └── Serverless Scheduler: Webhook Cron & Audit Logger
+```
 
 ---
 
-## 📸 Screenshots
-- Login & Registration Page  
-- File Upload Interface  
-- Dashboard with Records  
-- Email Sharing Form  
+## 🔐 Security & Authentication
+
+- **Token-Based Authentication**: All protected API endpoints require `Authorization: Bearer <token>` validated via `firebase-admin/auth` and HMAC SHA-256 signatures.
+- **Role-Based Access Control (RBAC)**: Strict role guards for `patient`, `doctor`, and `admin`.
+- **IDOR Protection**: Backend middleware enforces resource ownership (`req.user.email === resource.owner`).
+- **Encrypted Messaging**: Client-side AES-256 payload encryption with encrypted edit operations.
+- **DoS & API Protection**: Express JSON payload limits set to 10MB; rate-limiting guards sensitive AI and auth routes.
 
 ---
-## Linkedin post link 🔗 
 
-[Post link](https://www.linkedin.com/posts/ashapu-lokesh_mernstack-webdevelopment-fullstackdeveloper-activity-7350487545870249985-3drD?utm_source=social_share_send&utm_medium=android_app&rcm=ACoAAEf9Wd0BOFxeqyHyVRKmHnDIIjiUEFaZLfs&utm_campaign=copy_link)
+## 📤 Getting Started
 
+### 1. Prerequisites
+- Node.js v18+ 
+- Firebase Project & Firebase Service Account Key
+- Twilio & Nodemailer SMTP credentials (optional for alerts)
 
+### 2. Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## 🧩 Code Highlights
+### 3. Backend Setup
+```bash
+cd backend
+npm install
+npm start
+```
 
-### Uploading Files with Multer
+---
 
-```javascript
-router.post('/upload', upload.single('record'), async (req, res) => {
-  const record = new Record({
-    user: req.user._id,
-    filename: req.file.filename,
-    originalName: req.file.originalname,
-  });
-  await record.save();
-  res.redirect('/dashboard');
-});```
+## 🧪 Testing & Quality Assurance
 
+Run the automated backend security and authorization test suite:
+
+```bash
+node backend/tests/security_and_auth.test.js
+```
+
+Runs 4 automated verification tests:
+1. Auth Token Generation & Verification
+2. Expired Token Rejection
+3. IDOR Resource Ownership Verification
+4. Role-Based Authorization Guards
+
+---
+
+## 🌐 Deployment & Serverless Readiness
+
+- **Frontend Deployment**: Deploys natively to Vercel or Netlify (`vite build`).
+- **Backend Deployment**: Ready for Vercel Serverless Functions, Render, or Railway.
+- **Serverless Reminders**: Use Vercel Cron or an external ping service to trigger `POST /api/cron/check-reminders` with `x-cron-secret` header once per minute.
+
+---
+
+## 📚 Documentation Index
+
+- 📄 [Current State Audit](docs/meditrack-current-state-audit.md)
+- 📄 [Security Remediation Report](docs/meditrack-security-remediation.md)
+- 📄 [Data Flow & Privacy Architecture](docs/meditrack-data-flow.md)
+- 📄 [API Security & RBAC Matrix](docs/meditrack-api-security.md)
+- 📄 [Business Metrics & Incubation Analytics](docs/meditrack-business-metrics.md)
+- 📄 [Deployment Guide](docs/meditrack-deployment.md)
+- 📄 [Testing Infrastructure](docs/meditrack-testing.md)
+- 📄 [Product Roadmap](docs/meditrack-product-roadmap.md)
+
+---
+
+## ⚠️ Known Limitations & Development Roadmap
+
+1. **Browser-Dependent Local Storage**: IndexedDB storage is scoped to the user's specific browser and device. Clearing browser data will reset local document caches unless exported.
+2. **Telephony Credentials**: Voice and SMS alerts require an active Twilio account with verified numbers in sandbox mode.

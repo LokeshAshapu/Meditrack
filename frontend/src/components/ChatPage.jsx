@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, MessageSquare, Edit2, Repeat, X } from 'lucide-react';
+import { Send, User, MessageSquare, Edit2, Repeat, X, Paperclip, FileText, File } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import localforage from 'localforage';
+import { encryptPayload, decryptPayload } from '../utils/encryption';
 
 function ChatPage() {
     const [selectedChat, setSelectedChat] = useState(null);
@@ -10,7 +12,12 @@ function ChatPage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
     const [editingMessage, setEditingMessage] = useState(null);
+    const [medicalRecords, setMedicalRecords] = useState([]);
+    const [isAttachOpen, setIsAttachOpen] = useState(false);
+    const [attachedFile, setAttachedFile] = useState(null); // { name, data }
     const messagesEndRef = useRef(null);
+    const chatContainerRef = useRef(null);
+    const hasHandledNavigation = useRef(false);
     const location = useLocation();
 
     // 1. Initialize User
@@ -18,6 +25,12 @@ function ChatPage() {
         const email = localStorage.getItem("userEmail");
         const role = localStorage.getItem("userRole");
         setCurrentUser({ email, role });
+
+        if (email) {
+            localforage.getItem(`medicalRecords_${email}`).then((records) => {
+                if (records) setMedicalRecords(records);
+            }).catch(e => console.error(e));
+        }
     }, []);
 
     // 2. Fetch Chats on Load
@@ -26,14 +39,9 @@ function ChatPage() {
 
         const fetchChats = async () => {
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-chats?email=${currentUser.email}`);
+                const res = await authFetch('/get-chats');
                 const data = await res.json();
                 if (res.ok) {
-                    // Enrich chats with "Other Person" name (could be fetched or just inferred)
-                    // For now, we just rely on email if name not available, or fetch full details.
-                    // Ideally /get-chats should return enriched data.
-                    // We'll simplisticly assume participants[0] or [1] is the other person.
-                    // Backend now returns enriched data with 'otherName' and 'otherProfilePic'
                     const enrichedChats = data.chats.map(chat => {
                         const otherEmail = chat.participants.find(p => p !== currentUser.email);
                         return {
@@ -51,43 +59,9 @@ function ChatPage() {
         };
 
         fetchChats();
-
-        // Polling for new chats every 10s (simple real-time)
-        const interval = setInterval(fetchChats, 10000);
+        const interval = setInterval(fetchChats, 8000);
         return () => clearInterval(interval);
-
     }, [currentUser]);
-
-    // 3. Handle Navigation from "Find Doctors" (Start New Chat)
-    useEffect(() => {
-        if (!currentUser?.email || !location.state?.startChatWith) return;
-
-        const doctor = location.state.startChatWith;
-        const otherEmail = doctor.email;
-
-        // Auto-fill booking message if intent exists
-        if (location.state.bookingIntent) {
-            setNewMessage(`Hi Dr. ${doctor.name}, I would like to book an appointment.`);
-        }
-
-        // Check availability in existing chats
-        const existingChat = chats.find(c => c.participants.includes(otherEmail));
-
-        if (existingChat) {
-            setSelectedChat(existingChat);
-        } else {
-            // Setup temporary "Pending" chat state
-            // It gets created for real only when first message sent
-            setSelectedChat({
-                id: 'new',
-                name: doctor.name,
-                otherEmail: otherEmail,
-                participants: [currentUser.email, otherEmail],
-                messages: []
-            });
-        }
-
-    }, [currentUser, chats, location.state]);
 
     // 4. Fetch Messages when Chat Selected
     useEffect(() => {
@@ -98,21 +72,24 @@ function ChatPage() {
 
         const fetchMessages = async () => {
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_BASE}/get-messages/${selectedChat.id}`);
+                const res = await authFetch(`/get-messages/${selectedChat.id}`);
                 const data = await res.json();
                 if (res.ok) {
-                    // Only update if new messages arrived (check length for simplicity)
+                    const decryptedMessages = data.messages.map(m => ({
+                        ...m,
+                        text: m.text ? decryptPayload(m.text, selectedChat.id) : "",
+                        fileData: m.fileData ? decryptPayload(m.fileData, selectedChat.id) : null,
+                        fileName: m.fileName ? decryptPayload(m.fileName, selectedChat.id) : null
+                    }));
+
                     setMessages(prev => {
-                        if (prev.length !== data.messages.length) {
-                            return data.messages;
-                        }
-                        // Check last ID to be safe if length same (e.g. edit/delete - rare here)
-                        if (prev.length > 0 && data.messages.length > 0) {
-                            if (prev[prev.length - 1].id !== data.messages[data.messages.length - 1].id) {
-                                return data.messages;
+                        if (prev.length !== decryptedMessages.length) return decryptedMessages;
+                        if (prev.length > 0 && decryptedMessages.length > 0) {
+                            if (prev[prev.length - 1].id !== decryptedMessages[decryptedMessages.length - 1].id) {
+                                return decryptedMessages;
                             }
                         }
-                        return prev; // No change, prevents effect trigger
+                        return prev;
                     });
                 }
             } catch (error) {
@@ -121,79 +98,81 @@ function ChatPage() {
         };
 
         fetchMessages();
-        // Poll for new messages every 3s
         const interval = setInterval(fetchMessages, 3000);
         return () => clearInterval(interval);
-
     }, [selectedChat]);
-
-    // Scroll to bottom only when messages increase (new message arrived)
-    useEffect(() => {
-        if (messages.length > 0) {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }
-    }, [messages]);
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || !selectedChat) return;
+        if ((!newMessage.trim() && !attachedFile) || !selectedChat) return;
 
         try {
             if (editingMessage) {
-                // Handle Edit
-                const res = await fetch(`${import.meta.env.VITE_API_BASE}/edit-message`, {
+                // Encrypt message text before editing transmission to protect E2EE integrity
+                const encryptedText = encryptPayload(newMessage, selectedChat.id);
+                const res = await authFetch('/edit-message', {
                     method: "PUT",
-                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         chatId: selectedChat.id,
                         messageId: editingMessage.id,
-                        newText: newMessage
+                        newText: encryptedText
                     })
                 });
 
                 if (res.ok) {
-                    // Update local state
                     setMessages(prev => prev.map(m => m.id === editingMessage.id ? { ...m, text: newMessage, isEdited: true } : m));
                     setEditingMessage(null);
                     setNewMessage("");
                 }
             } else {
-                // Handle New Message
+                const payloadText = attachedFile && !newMessage ? "📄 Sent a document" : newMessage;
+                const finalChatId = selectedChat.id === 'new' ? `${[currentUser.email, selectedChat.otherEmail].sort().join('_')}` : selectedChat.id;
+
                 const payload = {
                     sender: currentUser.email,
                     recipient: selectedChat.otherEmail,
-                    text: newMessage,
+                    text: encryptPayload(payloadText, finalChatId),
+                    fileData: attachedFile ? encryptPayload(attachedFile.data, finalChatId) : null,
+                    fileName: attachedFile ? encryptPayload(attachedFile.name, finalChatId) : null,
                     chatId: selectedChat.id === 'new' ? null : selectedChat.id
                 };
 
-                const res = await fetch(`${import.meta.env.VITE_API_BASE}/send-message`, {
+                const res = await authFetch('/send-message', {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
                 });
 
-                const data = await res.json();
-
                 if (res.ok) {
+                    const data = await res.json();
                     // If it was a new chat, update the ID so subsequent messages use it
                     if (selectedChat.id === 'new' && data.chatId) {
                         setSelectedChat(prev => ({ ...prev, id: data.chatId }));
-                        // Also trigger a refresh of chat list
                     }
 
                     // Optimistic Update
                     const newMsg = {
                         id: Date.now(),
-                        text: newMessage,
+                        text: payloadText,
+                        fileData: attachedFile?.data || null,
+                        fileName: attachedFile?.name || null,
                         sender: currentUser.email,
                         timestamp: new Date().toISOString()
                     };
-                    setMessages([...messages, newMsg]);
+                    setMessages(prev => {
+                        const safeArray = Array.isArray(prev) ? prev : [];
+                        return [...safeArray, newMsg];
+                    });
                     setNewMessage("");
+                    setAttachedFile(null);
+                    setIsAttachOpen(false);
+                } else {
+                    const errData = await res.json();
+                    alert(`Failed to send message: ${errData.message}`);
                 }
             }
         } catch (error) {
             console.error("Failed to send message", error);
+            alert("Error: Network failure while sending message.");
         }
     };
 
@@ -249,7 +228,7 @@ function ChatPage() {
                             <span className="font-bold text-lg text-slate-800 dark:text-white">{selectedChat.name}</span>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={chatContainerRef}>
                             {/* Dummy Welcome Message */}
                             <div className="flex justify-center my-4">
                                 <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs px-3 py-1 rounded-full">
@@ -270,13 +249,22 @@ function ChatPage() {
                                 >
                                     <div className={`max-w-[70%] p-3 rounded-2xl ${msg.sender === currentUser.email ? 'bg-cyan-500 text-white rounded-br-none' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-none shadow-sm'} relative group`}>
                                         <p>{msg.text} {msg.isEdited && <span className="text-[10px] opacity-70 italic">(edited)</span>}</p>
+                                        
+                                        {msg.fileData && (
+                                            <div className="mt-2 p-2 bg-black/10 dark:bg-white/10 rounded-lg flex items-center gap-2">
+                                                <File size={16} />
+                                                <a href={msg.fileData} download={msg.fileName} className="text-sm underline max-w-[150px] truncate block" target="_blank" rel="noopener noreferrer">
+                                                    {msg.fileName || "View Document"}
+                                                </a>
+                                            </div>
+                                        )}
+
                                         <p className={`text-[10px] mt-1 ${msg.sender === currentUser.email ? 'text-cyan-100' : 'text-slate-400'}`}>
                                             {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </p>
                                     </div>
                                 </div>
                             ))}
-                            <div ref={messagesEndRef} />
                         </div>
 
                         {/* Context Menu */}
@@ -311,14 +299,51 @@ function ChatPage() {
                         {/* Close Menu on global click */}
                         {contextMenu && <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)}></div>}
 
-                        <div className="p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                        <div className="p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 relative">
                             {editingMessage && (
                                 <div className="flex justify-between items-center text-xs text-slate-500 mb-2 bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-lg">
                                     <span>Editing message...</span>
                                     <button onClick={() => { setEditingMessage(null); setNewMessage(""); }}><X size={14} /></button>
                                 </div>
                             )}
+
+                            {attachedFile && (
+                                <div className="flex justify-between items-center text-xs text-cyan-700 bg-cyan-50 dark:bg-cyan-900/30 dark:text-cyan-300 mb-2 px-3 py-1.5 rounded-lg">
+                                    <span className="flex items-center gap-2"><FileText size={14}/> Attached: {attachedFile.name}</span>
+                                    <button onClick={() => setAttachedFile(null)}><X size={14} /></button>
+                                </div>
+                            )}
+                            
+                            {isAttachOpen && (
+                                <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50 p-4 w-64 max-h-64 overflow-y-auto">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="font-semibold text-sm">Select Document</span>
+                                        <button onClick={() => setIsAttachOpen(false)}><X size={14} className="text-slate-400 hover:text-red-500"/></button>
+                                    </div>
+                                    {medicalRecords.length === 0 ? (
+                                        <div className="text-xs text-slate-500 text-center py-4">No records found in Dashboard.</div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {medicalRecords.map((doc, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => { setAttachedFile({ name: doc.name, data: doc.data }); setIsAttachOpen(false); }}
+                                                    className="w-full text-left text-sm p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg flex items-center gap-2"
+                                                >
+                                                    <FileText size={14} className="text-cyan-500"/>
+                                                    <span className="truncate">{doc.name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <form onSubmit={handleSendMessage} className="flex gap-2">
+                                <button type="button" onClick={() => setIsAttachOpen(!isAttachOpen)} className="p-3 bg-slate-100 dark:bg-slate-900 text-slate-500 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                                    <Paperclip size={20} />
+                                </button>
                                 <input
                                     type="text"
                                     value={newMessage}

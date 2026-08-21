@@ -35,7 +35,6 @@ function App() {
 
   return (
     <>
-      {/* 2. REMOVE the <Router> wrapper from here */}
       <ScrollToTop />
       <LoadingWrapper>
         <Layout>
@@ -48,6 +47,7 @@ function App() {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/privacy-center" element={<PrivacyCenter />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/" element={<WelcomePage />} />
             <Route path='/Dashboard' element={<Dashboard />} />

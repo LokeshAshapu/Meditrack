@@ -74,6 +74,12 @@ function SignupPage() {
 
             const data = await res.json();
             if (res.ok) {
+                if (data.token) {
+                    localStorage.setItem("authToken", data.token);
+                    localStorage.setItem("userEmail", formData.email);
+                    localStorage.setItem("userRole", formData.role);
+                }
+                alert("Account created successfully!");
                 navigate("/login");
             } else {
                 setError(data.message || "Signup failed");
