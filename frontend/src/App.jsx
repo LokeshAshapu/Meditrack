@@ -1,11 +1,7 @@
 import React, { useEffect } from 'react';
-// 1. REMOVE BrowserRouter (aliased as Router) from this import
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
-import WelcomePage from './components/WelcomePage';
-import MainPage from './components/MainPage';
-import MedicalSpecialities from './components/MedicalSpecialities';
-import ContactPage from './components/ContactPage';
+import AboutPage from './components/pages/AboutPage';
 import Tracker from './components/Tracker';
 import ScrollToTop from './components/ScrollToTop';
 import Dashboard from './components/pages/Dashboard';
@@ -21,6 +17,9 @@ import HelpCenter from './components/HelpCenter';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import PrivacyCenter from './components/pages/PrivacyCenter';
 import TermsOfService from './components/TermsOfService';
+import ProtectedRoute from './components/ProtectedRoute';
+import AccessRestricted from './components/pages/AccessRestricted';
+import NotFoundPage from './components/pages/NotFoundPage';
 import { disableReactDevTools } from '@fvilers/disable-react-devtools';
 import { requestPermissionAndToken } from './firebase';
 
@@ -40,27 +39,37 @@ function App() {
       <LoadingWrapper>
         <Layout>
           <Routes>
-            <Route path="/signup" element={<SignupPage />} />
+            {/* PUBLIC UNAUTHENTICATED ROUTES */}
+            <Route path="/" element={<AboutPage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/main" element={<MainPage />} />
-            <Route path="/medical" element={<MedicalSpecialities />} />
-            <Route path="/tracker" element={<Tracker />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/help" element={<HelpCenter />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/privacy-center" element={<PrivacyCenter />} />
-            <Route path="/terms" element={<TermsOfService />} />
-            <Route path="/" element={<WelcomePage />} />
-            <Route path='/Dashboard' element={<Dashboard />} />
-            <Route path='/doctor-dashboard' element={<DoctorDashboard />} />
-            <Route path='/messages' element={<ChatPage />} />
-            <Route path='/find-doctors' element={<FindDoctors />} />
-            <Route path='/doctor-profile' element={<DoctorProfile />} />
-            <Route path='/admin' element={<AdminDashboard />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/register" element={<SignupPage />} />
+            <Route path="/access-restricted" element={<AccessRestricted />} />
+
+            {/* PROTECTED PATIENT / GENERAL ROUTES */}
+            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><Dashboard /></ProtectedRoute>} />
+            <Route path="/tracker" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><Tracker /></ProtectedRoute>} />
+            <Route path="/find-doctors" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><FindDoctors /></ProtectedRoute>} />
+            <Route path="/doctor-profile" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><DoctorProfile /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><ChatPage /></ProtectedRoute>} />
+            <Route path="/privacy-center" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><PrivacyCenter /></ProtectedRoute>} />
+            <Route path="/help" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><HelpCenter /></ProtectedRoute>} />
+            <Route path="/privacy" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><PrivacyPolicy /></ProtectedRoute>} />
+            <Route path="/terms" element={<ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}><TermsOfService /></ProtectedRoute>} />
+
+            {/* ROLE-PROTECTED DOCTOR ROUTES */}
+            <Route path="/doctor-dashboard" element={<ProtectedRoute allowedRoles={['doctor', 'admin']}><DoctorDashboard /></ProtectedRoute>} />
+
+            {/* ROLE-PROTECTED ADMIN ROUTES */}
+            <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin-dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+
+            {/* CATCH-ALL 404 ROUTE */}
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Layout>
       </LoadingWrapper>
-      {/* 3. REMOVE the closing </Router> tag */}
     </>
   )
 }

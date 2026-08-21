@@ -100,7 +100,8 @@ function NavBar() {
                 <div className="flex justify-between items-center h-16">
 
                     {/* Logo */}
-                    <Link to="/main" className="flex-shrink-0 flex items-center gap-2 group">
+                    {/* Logo */}
+                    <Link to={!isLoggedIn ? "/about" : userRole === 'admin' ? "/admin" : userRole === 'doctor' ? "/doctor-dashboard" : "/dashboard"} className="flex-shrink-0 flex items-center gap-2 group">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl group-hover:scale-105 transition-transform">
                             M
                         </div>
@@ -111,27 +112,31 @@ function NavBar() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-1">
-                        {userRole === 'admin' ? (
+                        {!isLoggedIn ? (
+                            <>
+                                <NavLink to="/about">About</NavLink>
+                                <NavLink to="/login">Login</NavLink>
+                                <NavLink to="/signup">Register</NavLink>
+                            </>
+                        ) : userRole === 'admin' ? (
                             <>
                                 <NavLink to="/admin">Admin Panel</NavLink>
                                 <NavLink to="/messages">Messages</NavLink>
+                                <NavLink to="/privacy-center">Privacy Center</NavLink>
                             </>
                         ) : userRole === 'doctor' ? (
                             <>
-                                <NavLink to="/doctor-dashboard">Dashboard</NavLink>
+                                <NavLink to="/doctor-dashboard">Doctor Portal</NavLink>
                                 <NavLink to="/messages">Messages</NavLink>
                                 <NavLink to="/doctor-profile">Profile</NavLink>
-                                {/* Doctors don't strictly need Home or Specialities if it's patient facing, but Home is usually safe */}
                             </>
                         ) : (
                             <>
-                                <NavLink to="/main">Home</NavLink>
-                                <NavLink to="/find-doctors">Doctors</NavLink>
-                                <NavLink to="/medical">Specialities</NavLink>
+                                <NavLink to="/dashboard">Dashboard</NavLink>
                                 <NavLink to="/tracker">Tracker</NavLink>
-                                <NavLink to="/Dashboard">Dashboard</NavLink>
+                                <NavLink to="/find-doctors">Find Doctors</NavLink>
                                 <NavLink to="/messages">Messages</NavLink>
-                                <NavLink to="/contact">Contact</NavLink>
+                                <NavLink to="/privacy-center">Privacy Center</NavLink>
                             </>
                         )}
                     </div>
@@ -161,9 +166,14 @@ function NavBar() {
                                 Log Out
                             </button>
                         ) : (
-                            <Link to="/login" className="px-5 py-2 rounded-lg bg-cyan-600 text-white font-medium hover:bg-cyan-700 transition-all text-sm shadow-md shadow-cyan-500/20">
-                                Login
-                            </Link>
+                            <div className="flex items-center gap-2">
+                                <Link to="/login" className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-200 transition-all text-sm">
+                                    Login
+                                </Link>
+                                <Link to="/signup" className="px-4 py-2 rounded-lg bg-cyan-600 text-white font-medium hover:bg-cyan-700 transition-all text-sm shadow-md shadow-cyan-500/20">
+                                    Register
+                                </Link>
+                            </div>
                         )}
                     </div>
 
@@ -189,25 +199,35 @@ function NavBar() {
             {isOpen && (
                 <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <div className="px-4 py-6 space-y-3">
-                        {userRole === 'doctor' ? (
+                        {!isLoggedIn ? (
                             <>
-                                <MobileLink to="/doctor-dashboard" onClick={toggleMenu}>Dashboard</MobileLink>
+                                <MobileLink to="/about" onClick={toggleMenu}>About</MobileLink>
+                                <MobileLink to="/login" onClick={toggleMenu}>Login</MobileLink>
+                                <MobileLink to="/signup" onClick={toggleMenu}>Register</MobileLink>
+                            </>
+                        ) : userRole === 'doctor' ? (
+                            <>
+                                <MobileLink to="/doctor-dashboard" onClick={toggleMenu}>Doctor Portal</MobileLink>
                                 <MobileLink to="/messages" onClick={toggleMenu}>
                                     Messages {unreadCount > 0 && <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-xs">{unreadCount}</span>}
                                 </MobileLink>
                                 <MobileLink to="/doctor-profile" onClick={toggleMenu}>Profile</MobileLink>
                             </>
+                        ) : userRole === 'admin' ? (
+                            <>
+                                <MobileLink to="/admin" onClick={toggleMenu}>Admin Panel</MobileLink>
+                                <MobileLink to="/messages" onClick={toggleMenu}>Messages</MobileLink>
+                                <MobileLink to="/privacy-center" onClick={toggleMenu}>Privacy Center</MobileLink>
+                            </>
                         ) : (
                             <>
-                                <MobileLink to="/main" onClick={toggleMenu}>Home</MobileLink>
-                                <MobileLink to="/find-doctors" onClick={toggleMenu}>Doctors</MobileLink>
-                                <MobileLink to="/medical" onClick={toggleMenu}>Medical Specialities</MobileLink>
+                                <MobileLink to="/dashboard" onClick={toggleMenu}>Dashboard</MobileLink>
                                 <MobileLink to="/tracker" onClick={toggleMenu}>Tracker</MobileLink>
-                                <MobileLink to="/Dashboard" onClick={toggleMenu}>Dashboard</MobileLink>
+                                <MobileLink to="/find-doctors" onClick={toggleMenu}>Find Doctors</MobileLink>
                                 <MobileLink to="/messages" onClick={toggleMenu}>
                                     Messages {unreadCount > 0 && <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-xs">{unreadCount}</span>}
                                 </MobileLink>
-                                <MobileLink to="/contact" onClick={toggleMenu}>Contact</MobileLink>
+                                <MobileLink to="/privacy-center" onClick={toggleMenu}>Privacy Center</MobileLink>
                             </>
                         )}
 

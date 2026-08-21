@@ -35,14 +35,18 @@ function LoginPage() {
                 // --- FIX ---
                 // Wait for the token registration to try
                 await requestPermissionAndToken();
-                // --- END OF FIX ---
 
-                if (data.user.role === 'doctor') {
+                const params = new URLSearchParams(window.location.search);
+                const redirectParam = params.get('redirect');
+
+                if (redirectParam) {
+                    navigate(decodeURIComponent(redirectParam));
+                } else if (data.user.role === 'doctor') {
                     navigate("/doctor-dashboard");
                 } else if (data.user.role === 'admin') {
                     navigate("/admin");
                 } else {
-                    navigate("/main");
+                    navigate("/dashboard");
                 }
             } else {
                 alert(data.message || "Login failed");
