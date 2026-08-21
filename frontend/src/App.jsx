@@ -19,6 +19,7 @@ import AdminDashboard from './components/pages/AdminDashboard';
 import LoadingWrapper from './components/LoadingWrapper';
 import HelpCenter from './components/HelpCenter';
 import PrivacyPolicy from './components/PrivacyPolicy';
+import PrivacyCenter from './components/pages/PrivacyCenter';
 import TermsOfService from './components/TermsOfService';
 import { disableReactDevTools } from '@fvilers/disable-react-devtools';
 import { requestPermissionAndToken } from './firebase';
