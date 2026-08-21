@@ -4,6 +4,7 @@ import {
     ArrowRight, CheckCircle2, AlertCircle, FileText, ChevronRight, Sparkles 
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import Interactive3DHero from '../Interactive3DHero';
 
 function AboutPage() {
     const navigate = useNavigate();
@@ -22,46 +23,56 @@ function AboutPage() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans pb-16">
-            {/* Hero Section */}
-            <section className="relative overflow-hidden bg-gradient-to-b from-cyan-900 via-slate-900 to-slate-900 text-white pt-20 pb-24 px-6">
-                <div className="max-w-6xl mx-auto text-center relative z-10 space-y-6">
-                    <div className="inline-flex items-center gap-2 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
-                        <Sparkles size={14} /> Official MediTrack Platform Overview
+            {/* Hero Section with 3D Animated Canvas */}
+            <section className="relative overflow-hidden bg-gradient-to-b from-cyan-950 via-slate-900 to-slate-900 text-white pt-16 pb-20 px-6">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+                    
+                    {/* Left Column: Hero Copy & CTA */}
+                    <div className="lg:col-span-7 space-y-6 text-left">
+                        <div className="inline-flex items-center gap-2 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
+                            <Sparkles size={14} /> Official MediTrack Platform Overview
+                        </div>
+
+                        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
+                            Privacy-First Healthcare & <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500">Medication Adherence</span>
+                        </h1>
+
+                        <p className="text-base md:text-lg text-slate-300 max-w-2xl leading-relaxed">
+                            MediTrack helps patients maintain daily medication compliance, store medical documents privately on-device, and connect with verified physicians through secure telemedicine consultations.
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-4 pt-2">
+                            {isLoggedIn ? (
+                                <button
+                                    onClick={() => navigate('/dashboard')}
+                                    className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 text-white font-bold text-base px-8 py-3.5 rounded-2xl shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2"
+                                >
+                                    Go to Patient Dashboard <ArrowRight size={18} />
+                                </button>
+                            ) : (
+                                <>
+                                    <Link
+                                        to="/signup"
+                                        className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 text-white font-bold text-base px-8 py-3.5 rounded-2xl shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2"
+                                    >
+                                        Create Free Account <ArrowRight size={18} />
+                                    </Link>
+                                    <Link
+                                        to="/login"
+                                        className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-white font-semibold text-base px-8 py-3.5 rounded-2xl transition-all"
+                                    >
+                                        Sign In
+                                    </Link>
+                                </>
+                            )}
+                        </div>
                     </div>
 
-                    <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-tight">
-                        Privacy-First Healthcare & Medication Adherence Platform
-                    </h1>
-
-                    <p className="text-base md:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-                        MediTrack helps patients maintain daily medication compliance, store medical documents privately on-device, and connect with verified physicians through secure telemedicine consultations.
-                    </p>
-
-                    <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-                        {isLoggedIn ? (
-                            <button
-                                onClick={() => navigate('/dashboard')}
-                                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 text-white font-bold text-base px-8 py-3.5 rounded-2xl shadow-lg transition-all flex items-center gap-2"
-                            >
-                                Go to Patient Dashboard <ArrowRight size={18} />
-                            </button>
-                        ) : (
-                            <>
-                                <Link
-                                    to="/signup"
-                                    className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 text-white font-bold text-base px-8 py-3.5 rounded-2xl shadow-lg transition-all flex items-center gap-2"
-                                >
-                                    Create Free Account <ArrowRight size={18} />
-                                </Link>
-                                <Link
-                                    to="/login"
-                                    className="bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-white font-semibold text-base px-8 py-3.5 rounded-2xl transition-all"
-                                >
-                                    Sign In
-                                </Link>
-                            </>
-                        )}
+                    {/* Right Column: 3D Animated Canvas Visual */}
+                    <div className="lg:col-span-5 h-[380px] md:h-[450px] w-full flex items-center justify-center">
+                        <Interactive3DHero />
                     </div>
+
                 </div>
             </section>
 
